@@ -23,7 +23,7 @@ const Header = () => {
             <div className="w-8 h-8 bg-gradient-to-br from-primary-500 to-primary-700 rounded-lg flex items-center justify-center">
               <BookOpen className="w-5 h-5 text-white" />
             </div>
-            <span className="text-xl font-bold text-gray-900">DocuFlow</span>
+            <span className="text-xl font-bold text-gray-900">GitGen</span>
           </Link>
 
           {/* Desktop Navigation */}

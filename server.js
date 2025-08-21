@@ -36,7 +36,7 @@ const upload = multer({ dest: 'uploads/' });
 
 // Routes
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'healthy', service: 'DocuFlow' });
+  res.json({ status: 'healthy', service: 'GitGen' });
 });
 
 // Create new documentation project
@@ -395,6 +395,6 @@ app.get('*', (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`DocuFlow server running on port ${PORT}`);
+  console.log(`GitGen server running on port ${PORT}`);
   console.log(`Visit http://localhost:${PORT} to use the application`);
 });

@@ -1,5 +1,5 @@
 {
-  "name": "docuflow-client",
+  "name": "gitgen-client",
   "version": "1.0.0",
   "private": true,
   "dependencies": {

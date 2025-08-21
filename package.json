@@ -1,5 +1,5 @@
 {
-  "name": "docuflow",
+  "name": "gitgen",
   "version": "1.0.0",
   "description": "Modern documentation generator for Git repositories - A gitdocify.com competitor",
   "main": "server.js",
@@ -17,7 +17,7 @@
     "api-docs",
     "code-documentation"
   ],
-  "author": "DocuFlow Team",
+  "author": "GitGen Team",
   "license": "MIT",
   "dependencies": {
     "express": "^4.18.2",
