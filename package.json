@@ -1,0 +1,40 @@
+{
+  "name": "docuflow",
+  "version": "1.0.0",
+  "description": "Modern documentation generator for Git repositories - A gitdocify.com competitor",
+  "main": "server.js",
+  "scripts": {
+    "dev": "nodemon server.js",
+    "start": "node server.js",
+    "build": "npm run build:client",
+    "build:client": "cd client && npm run build",
+    "install:all": "npm install && cd client && npm install"
+  },
+  "keywords": [
+    "documentation",
+    "git",
+    "markdown",
+    "api-docs",
+    "code-documentation"
+  ],
+  "author": "DocuFlow Team",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "simple-git": "^3.20.0",
+    "marked": "^9.1.6",
+    "highlight.js": "^11.9.0",
+    "multer": "^1.4.5-lts.1",
+    "uuid": "^9.0.1",
+    "axios": "^1.6.0",
+    "cheerio": "^1.0.0-rc.12"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
