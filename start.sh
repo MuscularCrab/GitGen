@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "🚀 Starting DocuFlow - Git Documentation Generator"
+echo "🚀 Starting GitGen - Git Documentation Generator"
 echo "=================================================="
 
 # Check if Node.js is installed
