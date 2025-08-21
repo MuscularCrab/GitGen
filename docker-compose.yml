@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  docuflow:
+  gitgen:
     build: .
     ports:
       - "3001:3001"
@@ -20,7 +20,7 @@ services:
       start_period: 40s
 
   # Development service (optional)
-  docuflow-dev:
+  gitgen-dev:
     build: .
     ports:
       - "3002:3001"

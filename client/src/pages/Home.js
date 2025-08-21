@@ -199,7 +199,7 @@ const Home = () => {
       <section className="py-16">
         <div className="text-center mb-12">
           <h2 className="text-3xl font-bold text-gray-900 mb-4">
-            Why Choose DocuFlow?
+            Why Choose GitGen?
           </h2>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">
             Built for developers, by developers. Get professional-grade documentation 

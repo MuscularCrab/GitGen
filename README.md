@@ -1,4 +1,4 @@
-# DocuFlow - Git Documentation Generator
+# GitGen - Git Documentation Generator
 
 A modern, feature-rich alternative to gitdocify.com that automatically generates comprehensive documentation from Git repositories.
 
@@ -33,7 +33,7 @@ A modern, feature-rich alternative to gitdocify.com that automatically generates
 1. **Clone the repository**
    ```bash
    git clone <your-repo-url>
-   cd docuflow
+   cd gitgen
    ```
 
 2. **Install dependencies**
@@ -108,7 +108,7 @@ NODE_ENV=development
 ## 🏗️ Project Structure
 
 ```
-docuflow/
+gitgen/
 ├── server.js              # Express server and API endpoints
 ├── package.json           # Backend dependencies
 ├── client/                # React frontend application
@@ -134,6 +134,21 @@ npm test
 ```
 
 ## 🚀 Deployment
+
+### Quick Start with Docker (Recommended)
+```bash
+# Clone and run
+git clone <your-repo-url>
+cd gitgen
+docker-compose up -d
+
+# Access at http://localhost:3001
+```
+
+### Hosting Options
+
+- **[Windows Hosting Guide](WINDOWS_HOSTING.md)** - Step-by-step instructions for hosting on Windows
+- **[Docker Hosting Guide](DOCKER_HOSTING.md)** - Comprehensive Docker deployment guide
 
 ### Docker Deployment
 ```dockerfile
@@ -173,9 +188,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📞 Support
 
-- **Issues**: [GitHub Issues](https://github.com/yourusername/docuflow/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/yourusername/docuflow/discussions)
-- **Email**: support@docuflow.com
+- **Issues**: [GitHub Issues](https://github.com/yourusername/gitgen/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/yourusername/gitgen/discussions)
+- **Email**: support@gitgen.com
 
 ## 🔮 Roadmap
 
@@ -190,4 +205,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**DocuFlow** - Making documentation generation effortless and beautiful. 🚀
+**GitGen** - Making documentation generation effortless and beautiful. 🚀
