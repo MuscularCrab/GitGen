@@ -10,7 +10,8 @@ import {
   Plus,
   Calendar,
   FileText,
-  Folder
+  Folder,
+  Download
 } from 'lucide-react';
 
 const Projects = () => {
