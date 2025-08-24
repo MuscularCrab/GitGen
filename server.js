@@ -59,6 +59,62 @@ app.get('/api/status', (req, res) => {
   });
 });
 
+// Test Git endpoint (without actual cloning)
+app.get('/api/test-git', (req, res) => {
+  console.log('Test Git endpoint called');
+  try {
+    const git = simpleGit();
+    res.json({ 
+      message: 'Git is available',
+      gitVersion: 'simple-git package loaded',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      error: 'Git not available',
+      message: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Test project creation (without Git operations)
+app.post('/api/test-project', async (req, res) => {
+  console.log('Test project creation called');
+  try {
+    const { repoUrl, projectName, description } = req.body;
+    
+    if (!repoUrl || !projectName) {
+      return res.status(400).json({ error: 'Repository URL and project name are required' });
+    }
+
+    const projectId = uuidv4();
+    const project = {
+      id: projectId,
+      repoUrl,
+      projectName,
+      description: description || '',
+      status: 'completed', // Mark as completed immediately for testing
+      createdAt: new Date().toISOString(),
+      documentation: {
+        readme: 'This is a test project',
+        files: ['test.js'],
+        structure: { src: ['test.js'] },
+        summary: 'Test project for debugging'
+      },
+      completedAt: new Date().toISOString(),
+      error: null
+    };
+
+    projects.set(projectId, project);
+    res.json({ projectId, status: 'completed', project });
+    
+  } catch (error) {
+    console.error('Error creating test project:', error);
+    res.status(500).json({ error: 'Failed to create test project' });
+  }
+});
+
 // Create new documentation project
 app.post('/api/projects', async (req, res) => {
   try {
@@ -136,11 +192,23 @@ async function processRepository(projectId, repoUrl) {
     console.log(`Creating temp directory: ${tempDir}`);
     await fs.mkdir(tempDir, { recursive: true });
 
-    // Clone repository
+    // Clone repository with timeout
     console.log(`Cloning repository: ${repoUrl}`);
     const git = simpleGit();
-    await git.clone(repoUrl, tempDir);
-    console.log(`Repository cloned successfully to: ${tempDir}`);
+    
+    // Add timeout to git clone operation
+    const clonePromise = git.clone(repoUrl, tempDir);
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Git clone timeout after 60 seconds')), 60000)
+    );
+    
+    try {
+      await Promise.race([clonePromise, timeoutPromise]);
+      console.log(`Repository cloned successfully to: ${tempDir}`);
+    } catch (cloneError) {
+      console.error(`Git clone failed for ${repoUrl}:`, cloneError);
+      throw new Error(`Failed to clone repository: ${cloneError.message}`);
+    }
 
     // Generate documentation
     console.log(`Generating documentation for: ${tempDir}`);

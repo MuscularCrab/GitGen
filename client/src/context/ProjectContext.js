@@ -83,7 +83,9 @@ export const ProjectProvider = ({ children }) => {
   const createProject = async (projectData) => {
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
-      const response = await axios.post(`${apiBaseUrl}/api/projects`, projectData);
+              const response = await axios.post(`${apiBaseUrl}/api/projects`, projectData, {
+          timeout: 30000 // 30 second timeout
+        });
       
       // Add the new project to the list
       const newProject = {

@@ -152,26 +152,71 @@ const Home = () => {
               >
                 Test API
               </button>
-              <button
-                type="button"
-                onClick={async () => {
-                  try {
-                    console.log('Testing health endpoint...');
-                    const response = await fetch(`${apiBaseUrl}/api/health`);
-                    const data = await response.json();
-                    console.log('Health check response:', data);
-                    alert(`Health check passed! Response: ${JSON.stringify(data)}`);
-                  } catch (error) {
-                    console.error('Health check failed:', error);
-                    alert(`Health check failed: ${error.message}`);
-                  }
-                }}
-                className="btn-secondary text-sm px-3 py-1"
-              >
-                Health Check
-              </button>
-            </div>
-          </div>
+                             <button
+                 type="button"
+                 onClick={async () => {
+                   try {
+                     console.log('Testing health endpoint...');
+                     const response = await fetch(`${apiBaseUrl}/api/health`);
+                     const data = await response.json();
+                     console.log('Health check response:', data);
+                     alert(`Health check passed! Response: ${JSON.stringify(data)}`);
+                   } catch (error) {
+                     console.error('Health check failed:', error);
+                     alert(`Health check failed: ${error.message}`);
+                   }
+                 }}
+                 className="btn-secondary text-sm px-3 py-1"
+               >
+                 Health Check
+               </button>
+               <button
+                 type="button"
+                 onClick={async () => {
+                   try {
+                     console.log('Testing Git functionality...');
+                     const response = await fetch(`${apiBaseUrl}/api/test-git`);
+                     const data = await response.json();
+                     console.log('Git test response:', data);
+                     alert(`Git test response: ${JSON.stringify(data)}`);
+                   } catch (error) {
+                     console.error('Git test failed:', error);
+                     alert(`Git test failed: ${error.message}`);
+                   }
+                 }}
+                 className="btn-secondary text-sm px-3 py-1"
+                                >
+                   Test Git
+                 </button>
+                 <button
+                   type="button"
+                   onClick={async () => {
+                     try {
+                       console.log('Testing project creation...');
+                       const testData = {
+                         repoUrl: 'https://github.com/test/test',
+                         projectName: 'Test Project',
+                         description: 'This is a test project'
+                       };
+                       const response = await fetch(`${apiBaseUrl}/api/test-project`, {
+                         method: 'POST',
+                         headers: { 'Content-Type': 'application/json' },
+                         body: JSON.stringify(testData)
+                       });
+                       const data = await response.json();
+                       console.log('Test project response:', data);
+                       alert(`Test project created! Response: ${JSON.stringify(data)}`);
+                     } catch (error) {
+                       console.error('Test project creation failed:', error);
+                       alert(`Test project creation failed: ${error.message}`);
+                     }
+                   }}
+                   className="btn-secondary text-sm px-3 py-1"
+                 >
+                   Test Project Creation
+                 </button>
+               </div>
+             </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
