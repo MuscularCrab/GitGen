@@ -411,7 +411,8 @@ async function generateFileSummary(filePath, relativePath, extension) {
       path: relativePath,
       extension,
       size: content.length,
-      lines: content.split('\n').length
+      lines: content.split('\n').length,
+      raw: content // Store raw content for AI analysis
     };
     
     // Generate content summary based on file type
@@ -419,13 +420,24 @@ async function generateFileSummary(filePath, relativePath, extension) {
       summary.type = 'javascript';
       summary.functions = extractFunctions(content);
       summary.classes = extractClasses(content);
+      summary.imports = extractImports(content);
+      summary.dependencies = extractDependencies(content);
     } else if (['.py'].includes(extension)) {
       summary.type = 'python';
       summary.functions = extractPythonFunctions(content);
       summary.classes = extractPythonClasses(content);
+      summary.imports = extractPythonImports(content);
     } else if (['.md', '.txt'].includes(extension)) {
       summary.type = 'markdown';
       summary.content = marked.parse(content.substring(0, 500) + '...');
+    } else if (['.json'].includes(extension)) {
+      summary.type = 'json';
+      try {
+        const jsonData = JSON.parse(content);
+        summary.jsonData = jsonData;
+      } catch (e) {
+        // Invalid JSON
+      }
     }
     
     return summary;
@@ -487,6 +499,51 @@ function extractPythonClasses(content) {
   }
   
   return classes;
+}
+
+// Extract JavaScript/TypeScript imports
+function extractImports(content) {
+  const importRegex = /import\s+(?:\{[^}]*\}|\*\s+as\s+\w+|\w+)\s+from\s+['"`]([^'"`]+)['"`]/g;
+  const imports = [];
+  let match;
+  
+  while ((match = importRegex.exec(content)) !== null) {
+    imports.push(match[1]);
+  }
+  
+  return imports;
+}
+
+// Extract dependencies from package.json or similar
+function extractDependencies(content) {
+  const dependencyRegex = /["']([^"']+)["']\s*:\s*["']([^"']+)["']/g;
+  const dependencies = [];
+  let match;
+  
+  while ((match = dependencyRegex.exec(content)) !== null) {
+    if (match[1] && match[2]) {
+      dependencies.push({ name: match[1], version: match[2] });
+    }
+  }
+  
+  return dependencies;
+}
+
+// Extract Python imports
+function extractPythonImports(content) {
+  const importRegex = /(?:from\s+(\w+(?:\.\w+)*)\s+import|import\s+(\w+(?:\s*,\s*\w+)*))/g;
+  const imports = [];
+  let match;
+  
+  while ((match = importRegex.exec(content)) !== null) {
+    if (match[1]) {
+      imports.push(match[1]);
+    } else if (match[2]) {
+      imports.push(...match[2].split(',').map(i => i.trim()));
+    }
+  }
+  
+  return imports;
 }
 
 // Generate overall summary
@@ -568,7 +625,10 @@ async function generateNewReadme(repoPath, documentation) {
 // Generate README content based on analysis
 function generateReadmeContent(documentation, packageInfo, mainFile) {
   const projectName = packageInfo?.name || 'Project';
-  const description = packageInfo?.description || 'A software project';
+  
+  // Generate intelligent description based on code analysis
+  const description = generateIntelligentDescription(documentation, packageInfo);
+  
   const version = packageInfo?.version || '1.0.0';
   const author = packageInfo?.author || 'Developer';
   const license = packageInfo?.license || 'MIT';
@@ -591,19 +651,17 @@ function generateReadmeContent(documentation, packageInfo, mainFile) {
   
   // Installation
   readme += `## Installation\n\n`;
-  if (packageInfo && packageInfo.scripts && packageInfo.scripts.install) {
-    readme += `\`\`\`bash\nnpm install\n\`\`\`\n\n`;
-  } else {
-    readme += `\`\`\`bash\n# Clone the repository\ngit clone <repository-url>\ncd ${projectName}\n\`\`\`\n\n`;
-  }
+  const installCommands = generateInstallCommands(packageInfo, documentation);
+  installCommands.forEach(cmd => {
+    readme += `\`\`\`bash\n${cmd}\n\`\`\`\n\n`;
+  });
   
   // Usage
   readme += `## Usage\n\n`;
-  if (packageInfo && packageInfo.scripts && packageInfo.scripts.start) {
-    readme += `\`\`\`bash\nnpm start\n\`\`\`\n\n`;
-  } else {
-    readme += `\`\`\`bash\n# Run the application\nnode ${mainFile}\n\`\`\`\n\n`;
-  }
+  const usageCommands = generateUsageCommands(packageInfo, mainFile, documentation);
+  usageCommands.forEach(cmd => {
+    readme += `\`\`\`bash\n${cmd}\n\`\`\`\n\n`;
+  });
   
   // Features
   readme += `## Features\n\n`;
@@ -612,9 +670,36 @@ function generateReadmeContent(documentation, packageInfo, mainFile) {
     readme += `- **Multi-language support**: ${languages.join(', ')}\n`;
     readme += `- **${documentation.summary.totalFiles} source files**\n`;
     readme += `- **${documentation.summary.totalDirectories} directories**\n`;
+    
+    // Add intelligent feature detection
+    const features = detectProjectFeatures(documentation);
+    features.forEach(feature => {
+      readme += `- **${feature}\n`;
+    });
   }
   readme += `- Modern architecture\n`;
   readme += `- Easy to use\n\n`;
+  
+  // Code Analysis
+  readme += `## Code Analysis\n\n`;
+  
+  // Analyze the codebase
+  const codeAnalysis = analyzeCodebase(documentation);
+  if (codeAnalysis.languages.length > 0) {
+    readme += `### Languages & Technologies\n\n`;
+    codeAnalysis.languages.forEach(lang => {
+      readme += `- **${lang.name}**: ${lang.description}\n`;
+    });
+    readme += `\n`;
+  }
+  
+  if (codeAnalysis.patterns.length > 0) {
+    readme += `### Design Patterns\n\n`;
+    codeAnalysis.patterns.forEach(pattern => {
+      readme += `- **${pattern.name}**: ${pattern.description}\n`;
+    });
+    readme += `\n`;
+  }
   
   // API Reference
   if (documentation.files.some(f => f.functions && f.functions.length > 0)) {
@@ -643,6 +728,13 @@ function generateReadmeContent(documentation, packageInfo, mainFile) {
   
   // Project Structure
   readme += `## Project Structure\n\n`;
+  
+  // Add intelligent structure description
+  const structureDescription = generateStructureDescription(documentation.structure);
+  if (structureDescription) {
+    readme += `${structureDescription}\n\n`;
+  }
+  
   readme += `\`\`\`\n`;
   const structureLines = [];
   
@@ -683,6 +775,379 @@ function generateReadmeContent(documentation, packageInfo, mainFile) {
   readme += `Generated with ❤️ by GitGen\n`;
   
   return readme;
+}
+
+// Generate intelligent description based on code analysis
+function generateIntelligentDescription(documentation, packageInfo) {
+  // If package.json has a good description, use it
+  if (packageInfo?.description && packageInfo.description.length > 10) {
+    return packageInfo.description;
+  }
+  
+  // Analyze the code to generate a description
+  let description = '';
+  
+  // Analyze file types and languages
+  const languages = Object.keys(documentation.summary.languages || {});
+  const fileTypes = Object.keys(documentation.summary.fileTypes || {});
+  
+  // Analyze main functionality based on file names and content
+  const mainFiles = documentation.files.filter(f => 
+    f.path.includes('main') || f.path.includes('index') || f.path.includes('app') || f.path.includes('server')
+  );
+  
+  // Look for key indicators in the code
+  let hasWebServer = false;
+  let hasDatabase = false;
+  let hasAPI = false;
+  let hasCLI = false;
+  let hasTests = false;
+  let hasDocker = false;
+  
+  // Check for common patterns
+  documentation.files.forEach(file => {
+    const content = file.raw || '';
+    const path = file.path.toLowerCase();
+    
+    if (content.includes('express') || content.includes('app.listen') || content.includes('server.listen')) {
+      hasWebServer = true;
+    }
+    if (content.includes('database') || content.includes('db.') || content.includes('mongoose') || content.includes('sequelize')) {
+      hasDatabase = true;
+    }
+    if (content.includes('api/') || content.includes('router.') || content.includes('@RestController')) {
+      hasAPI = true;
+    }
+    if (content.includes('process.argv') || content.includes('commander') || content.includes('argparse')) {
+      hasCLI = true;
+    }
+    if (path.includes('test') || path.includes('spec') || path.includes('__tests__')) {
+      hasTests = true;
+    }
+    if (path.includes('dockerfile') || path.includes('docker-compose')) {
+      hasDocker = true;
+    }
+  });
+  
+  // Generate description based on analysis
+  if (hasWebServer && hasAPI) {
+    description = `A modern web API server built with ${languages.join(', ')}.`;
+  } else if (hasWebServer) {
+    description = `A web application built with ${languages.join(', ')}.`;
+  } else if (hasCLI) {
+    description = `A command-line interface tool built with ${languages.join(', ')}.`;
+  } else if (hasDatabase) {
+    description = `A data-driven application with ${languages.join(', ')} backend.`;
+  } else if (hasTests) {
+    description = `A well-tested ${languages.join(', ')} project with comprehensive test coverage.`;
+  } else if (hasDocker) {
+    description = `A containerized ${languages.join(', ')} application ready for deployment.`;
+  } else {
+    // Generic but more specific based on what we found
+    const totalFiles = documentation.summary.totalFiles || 0;
+    const totalDirs = documentation.summary.totalDirectories || 0;
+    
+    if (totalFiles > 50) {
+      description = `A comprehensive ${languages.join(', ')} project with ${totalFiles} source files.`;
+    } else if (totalFiles > 20) {
+      description = `A medium-scale ${languages.join(', ')} application with ${totalFiles} source files.`;
+    } else {
+      description = `A ${languages.join(', ')} project with ${totalFiles} source files.`;
+    }
+  }
+  
+  // Add specific details if we found interesting patterns
+  if (hasWebServer && hasDatabase && hasAPI) {
+    description += ' Features a RESTful API with database integration.';
+  } else if (hasWebServer && hasAPI) {
+    description += ' Provides a clean API interface for web services.';
+  } else if (hasTests) {
+    description += ' Includes comprehensive testing for reliability.';
+  } else if (hasDocker) {
+    description += ' Containerized for easy deployment and scaling.';
+  }
+  
+  return description;
+}
+
+// Detect project features based on code analysis
+function detectProjectFeatures(documentation) {
+  const features = [];
+  
+  // Check for common patterns and technologies
+  let hasExpress = false;
+  let hasReact = false;
+  let hasVue = false;
+  let hasAngular = false;
+  let hasDatabase = false;
+  let hasTesting = false;
+  let hasDocker = false;
+  let hasCI = false;
+  let hasLinting = false;
+  let hasTypeScript = false;
+  let hasPython = false;
+  let hasJava = false;
+  
+  documentation.files.forEach(file => {
+    const content = file.raw || '';
+    const path = file.path.toLowerCase();
+    
+    // Framework detection
+    if (content.includes('express') || content.includes('app.use')) {
+      hasExpress = true;
+    }
+    if (content.includes('react') || content.includes('jsx') || content.includes('useState')) {
+      hasReact = true;
+    }
+    if (content.includes('vue') || content.includes('createApp')) {
+      hasVue = true;
+    }
+    if (content.includes('angular') || content.includes('@Component')) {
+      hasAngular = true;
+    }
+    
+    // Technology detection
+    if (content.includes('database') || content.includes('mongoose') || content.includes('sequelize')) {
+      hasDatabase = true;
+    }
+    if (path.includes('test') || path.includes('spec') || content.includes('jest') || content.includes('mocha')) {
+      hasTesting = true;
+    }
+    if (path.includes('dockerfile') || path.includes('docker-compose')) {
+      hasDocker = true;
+    }
+    if (path.includes('.github') || path.includes('travis') || path.includes('circle')) {
+      hasCI = true;
+    }
+    if (content.includes('eslint') || content.includes('prettier')) {
+      hasLinting = true;
+    }
+    if (file.extension === '.ts' || file.extension === '.tsx') {
+      hasTypeScript = true;
+    }
+    if (file.extension === '.py') {
+      hasPython = true;
+    }
+    if (file.extension === '.java') {
+      hasJava = true;
+    }
+  });
+  
+  // Add detected features
+  if (hasExpress) features.push('Express.js backend framework');
+  if (hasReact) features.push('React frontend framework');
+  if (hasVue) features.push('Vue.js frontend framework');
+  if (hasAngular) features.push('Angular frontend framework');
+  if (hasDatabase) features.push('Database integration');
+  if (hasTesting) features.push('Comprehensive testing suite');
+  if (hasDocker) features.push('Docker containerization');
+  if (hasCI) features.push('Continuous Integration/Deployment');
+  if (hasLinting) features.push('Code quality tools');
+  if (hasTypeScript) features.push('TypeScript support');
+  if (hasPython) features.push('Python backend');
+  if (hasJava) features.push('Java backend');
+  
+  return features;
+}
+
+// Generate intelligent installation commands
+function generateInstallCommands(packageInfo, documentation) {
+  const commands = [];
+  
+  // Check if it's a Node.js project
+  if (packageInfo && packageInfo.scripts) {
+    commands.push('# Install dependencies\nnpm install');
+    
+    // Check for additional setup steps
+    if (documentation.files.some(f => f.path.includes('package-lock.json'))) {
+      commands.push('# Or use yarn if preferred\nyarn install');
+    }
+  }
+  
+  // Check for Python requirements
+  if (documentation.files.some(f => f.path.includes('requirements.txt'))) {
+    commands.push('# Install Python dependencies\npip install -r requirements.txt');
+  }
+  
+  // Check for Docker
+  if (documentation.files.some(f => f.path.includes('dockerfile') || f.path.includes('docker-compose'))) {
+    commands.push('# Or use Docker\ndocker-compose up --build');
+  }
+  
+  // Default fallback
+  if (commands.length === 0) {
+    commands.push('# Clone the repository\ngit clone <repository-url>', '# Navigate to project directory\ncd <project-name>');
+  }
+  
+  return commands;
+}
+
+// Generate intelligent usage commands
+function generateUsageCommands(packageInfo, mainFile, documentation) {
+  const commands = [];
+  
+  // Check for npm scripts
+  if (packageInfo && packageInfo.scripts) {
+    if (packageInfo.scripts.start) {
+      commands.push('# Start the application\nnpm start');
+    }
+    if (packageInfo.scripts.dev) {
+      commands.push('# Start in development mode\nnpm run dev');
+    }
+    if (packageInfo.scripts.build) {
+      commands.push('# Build for production\nnpm run build');
+    }
+    if (packageInfo.scripts.test) {
+      commands.push('# Run tests\nnpm test');
+    }
+  }
+  
+  // Check for Python main files
+  if (documentation.files.some(f => f.extension === '.py' && f.path.includes('main'))) {
+    commands.push('# Run Python application\npython main.py');
+  }
+  
+  // Check for Java
+  if (documentation.files.some(f => f.extension === '.java')) {
+    commands.push('# Compile and run Java application\njavac *.java\njava Main');
+  }
+  
+  // Default fallback
+  if (commands.length === 0) {
+    commands.push(`# Run the application\nnode ${mainFile}`);
+  }
+  
+  return commands;
+}
+
+// Generate intelligent project structure description
+function generateStructureDescription(structure) {
+  const directories = Object.keys(structure).filter(key => structure[key].type === 'directory');
+  const files = Object.keys(structure).filter(key => structure[key].type === 'file');
+  
+  let description = '';
+  
+  // Analyze common patterns
+  if (directories.includes('src') && directories.includes('public')) {
+    description = 'This project follows a modern web application structure with separate source and public directories.';
+  } else if (directories.includes('src') && directories.includes('tests')) {
+    description = 'The project is organized with source code in the `src` directory and tests in the `tests` directory.';
+  } else if (directories.includes('app') && directories.includes('config')) {
+    description = 'This application uses a modular structure with separate app and configuration directories.';
+  } else if (directories.includes('lib') && directories.includes('bin')) {
+    description = 'The project follows a library structure with core functionality in `lib` and executables in `bin`.';
+  } else if (directories.includes('components') && directories.includes('pages')) {
+    description = 'This appears to be a component-based application with organized component and page directories.';
+  }
+  
+  // Add file count information
+  if (files.length > 0) {
+    if (!description) description = 'The project contains ';
+    else description += ' ';
+    
+    if (files.length > 100) {
+      description += `a large number of source files (${files.length} total).`;
+    } else if (files.length > 50) {
+      description += `a substantial codebase with ${files.length} source files.`;
+    } else if (files.length > 20) {
+      description += `a moderate-sized codebase with ${files.length} source files.`;
+    } else {
+      description += `${files.length} source files.`;
+    }
+  }
+  
+  return description;
+}
+
+// Analyze the codebase for intelligent insights
+function analyzeCodebase(documentation) {
+  const analysis = {
+    languages: [],
+    patterns: []
+  };
+  
+  // Analyze languages and their usage
+  const languageStats = documentation.summary.languages || {};
+  Object.entries(languageStats).forEach(([lang, count]) => {
+    let description = '';
+    
+    switch (lang) {
+      case 'javascript':
+        description = `Primary language with ${count} files. Modern ES6+ features and Node.js ecosystem.`;
+        break;
+      case 'typescript':
+        description = `Type-safe JavaScript with ${count} files. Enhanced developer experience and better maintainability.`;
+        break;
+      case 'python':
+        description = `Backend language with ${count} files. Clean syntax and extensive library ecosystem.`;
+        break;
+      case 'java':
+        description = `Enterprise-grade language with ${count} files. Strong typing and object-oriented design.`;
+        break;
+      default:
+        description = `Used in ${count} files.`;
+    }
+    
+    analysis.languages.push({ name: lang, description, count });
+  });
+  
+  // Detect design patterns and architectural approaches
+  const files = documentation.files;
+  let hasComponents = false;
+  let hasServices = false;
+  let hasModels = false;
+  let hasControllers = false;
+  let hasMiddleware = false;
+  let hasUtils = false;
+  
+  files.forEach(file => {
+    const path = file.path.toLowerCase();
+    if (path.includes('component') || path.includes('components')) hasComponents = true;
+    if (path.includes('service') || path.includes('services')) hasServices = true;
+    if (path.includes('model') || path.includes('models')) hasModels = true;
+    if (path.includes('controller') || path.includes('controllers')) hasControllers = true;
+    if (path.includes('middleware')) hasMiddleware = true;
+    if (path.includes('util') || path.includes('utils')) hasUtils = true;
+  });
+  
+  // Add detected patterns
+  if (hasComponents && hasServices) {
+    analysis.patterns.push({
+      name: 'Component-Service Architecture',
+      description: 'Separation of concerns with reusable components and business logic services.'
+    });
+  }
+  
+  if (hasModels && hasControllers) {
+    analysis.patterns.push({
+      name: 'MVC Pattern',
+      description: 'Model-View-Controller architecture for organized code structure.'
+    });
+  }
+  
+  if (hasMiddleware) {
+    analysis.patterns.push({
+      name: 'Middleware Pattern',
+      description: 'Request processing pipeline with modular middleware functions.'
+    });
+  }
+  
+  if (hasUtils) {
+    analysis.patterns.push({
+      name: 'Utility Functions',
+      description: 'Reusable helper functions for common operations.'
+    });
+  }
+  
+  // Check for testing patterns
+  if (documentation.files.some(f => f.path.includes('test') || f.path.includes('spec'))) {
+    analysis.patterns.push({
+      name: 'Test-Driven Development',
+      description: 'Comprehensive testing approach with dedicated test files.'
+    });
+  }
+  
+  return analysis;
 }
 
 // Serve React app for all other routes
