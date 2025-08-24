@@ -1,0 +1,4 @@
+[33me72273d[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m Add package-lock.json for client dependencies and configuration (#4)
+[33m711ba88[m Rename project from DocuFlow to GitGen across all files (#2)
+[33mfc4fd96[m Initialize DocuFlow project with React frontend and Node.js backend (#1)
+[33m61501b1[m Initial commit
