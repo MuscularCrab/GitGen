@@ -41,10 +41,21 @@ app.get('/api/health', (req, res) => {
 
 // Test endpoint for debugging
 app.get('/api/test', (req, res) => {
+  console.log('Test endpoint called');
   res.json({ 
     message: 'Backend is working!', 
     timestamp: new Date().toISOString(),
     projectsCount: projects.size
+  });
+});
+
+// Simple status endpoint
+app.get('/api/status', (req, res) => {
+  console.log('Status endpoint called');
+  res.json({ 
+    status: 'running',
+    port: PORT,
+    timestamp: new Date().toISOString()
   });
 });
 

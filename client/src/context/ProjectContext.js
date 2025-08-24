@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import axios from 'axios';
+import { apiBaseUrl } from '../config';
 
 const ProjectContext = createContext();
 
@@ -49,10 +50,13 @@ export const ProjectProvider = ({ children }) => {
 
   const loadProjects = async () => {
     try {
+      console.log('Loading projects...');
       dispatch({ type: 'SET_LOADING', payload: true });
-      const response = await axios.get('/api/projects');
+      const response = await axios.get(`${apiBaseUrl}/api/projects`);
+      console.log('Projects loaded:', response.data);
       dispatch({ type: 'SET_PROJECTS', payload: response.data });
     } catch (error) {
+      console.error('Error loading projects:', error);
       dispatch({ type: 'SET_ERROR', payload: 'Failed to load projects' });
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false });
@@ -62,7 +66,7 @@ export const ProjectProvider = ({ children }) => {
   const createProject = async (projectData) => {
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
-      const response = await axios.post('/api/projects', projectData);
+      const response = await axios.post(`${apiBaseUrl}/api/projects`, projectData);
       
       // Add the new project to the list
       const newProject = {
@@ -104,7 +108,7 @@ export const ProjectProvider = ({ children }) => {
   const pollProjectStatus = async (projectId) => {
     const pollInterval = setInterval(async () => {
       try {
-        const response = await axios.get(`/api/projects/${projectId}`);
+        const response = await axios.get(`${apiBaseUrl}/api/projects/${projectId}`);
         const project = response.data;
         
         dispatch({ type: 'UPDATE_PROJECT', payload: project });

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useProjects } from '../context/ProjectContext';
+import { apiBaseUrl } from '../config';
 import { 
   BookOpen, 
   GitBranch, 
@@ -126,6 +127,31 @@ const Home = () => {
               </div>
             </div>
           )}
+
+          {/* Debug section */}
+          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex items-center space-x-2 text-blue-800 mb-2">
+              <span className="text-sm font-medium">Debug: Test API Connection</span>
+            </div>
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  console.log('Testing API connection...');
+                  const response = await fetch(`${apiBaseUrl}/api/test`);
+                  const data = await response.json();
+                  console.log('API test response:', data);
+                  alert(`API is working! Response: ${JSON.stringify(data)}`);
+                } catch (error) {
+                  console.error('API test failed:', error);
+                  alert(`API test failed: ${error.message}`);
+                }
+              }}
+              className="btn-secondary text-sm px-3 py-1"
+            >
+              Test API
+            </button>
+          </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
