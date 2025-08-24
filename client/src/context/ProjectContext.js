@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useReducer, useEffect } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { apiBaseUrl } from '../config';
 
@@ -64,7 +64,7 @@ export const ProjectProvider = ({ children }) => {
     return () => clearTimeout(resetTimer);
   }, [state.loading]);
 
-  const loadProjects = async () => {
+  const loadProjects = useCallback(async () => {
     try {
       console.log('Loading projects...');
       dispatch({ type: 'SET_LOADING', payload: true });
@@ -91,9 +91,9 @@ export const ProjectProvider = ({ children }) => {
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false });
     }
-  };
+  }, []);
 
-  const createProject = async (projectData) => {
+  const createProject = useCallback(async (projectData) => {
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
       
@@ -131,9 +131,9 @@ export const ProjectProvider = ({ children }) => {
       dispatch({ type: 'SET_LOADING', payload: false });
       throw error;
     }
-  };
+  }, []);
 
-  const loadProject = async (projectId) => {
+  const loadProject = useCallback(async (projectId) => {
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
       const response = await axios.get(`${apiBaseUrl}/api/projects/${projectId}`);
@@ -145,9 +145,9 @@ export const ProjectProvider = ({ children }) => {
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false });
     }
-  };
+  }, []);
 
-  const pollProjectStatus = async (projectId) => {
+  const pollProjectStatus = useCallback(async (projectId) => {
     console.log(`Starting to poll project status for: ${projectId}`);
     let pollCount = 0;
     const maxPolls = 15; // Maximum 15 polls (30 seconds total)
@@ -194,11 +194,11 @@ export const ProjectProvider = ({ children }) => {
         }
       }
     }, 1000); // Poll every 1 second - much more aggressive
-  };
+  }, []);
 
-  const clearError = () => {
+  const clearError = useCallback(() => {
     dispatch({ type: 'CLEAR_ERROR' });
-  };
+  }, []);
 
   const value = {
     ...state,
