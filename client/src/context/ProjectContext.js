@@ -83,9 +83,19 @@ export const ProjectProvider = ({ children }) => {
   const createProject = async (projectData) => {
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
-              const response = await axios.post(`${apiBaseUrl}/api/projects`, projectData, {
-          timeout: 30000 // 30 second timeout
-        });
+      
+      // Add overall timeout for project creation
+      const createTimeout = setTimeout(() => {
+        dispatch({ type: 'SET_ERROR', payload: 'Project creation timeout. Please check if the backend is working.' });
+        dispatch({ type: 'SET_LOADING', payload: false });
+      }, 120000); // 2 minutes total timeout
+      
+      const response = await axios.post(`${apiBaseUrl}/api/projects`, projectData, {
+        timeout: 30000 // 30 second timeout for initial request
+      });
+      
+      // Clear the overall timeout since we got a response
+      clearTimeout(createTimeout);
       
       // Add the new project to the list
       const newProject = {
@@ -113,7 +123,7 @@ export const ProjectProvider = ({ children }) => {
   const loadProject = async (projectId) => {
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
-      const response = await axios.get(`/api/projects/${projectId}`);
+      const response = await axios.get(`${apiBaseUrl}/api/projects/${projectId}`);
       dispatch({ type: 'SET_CURRENT_PROJECT', payload: response.data });
       return response.data;
     } catch (error) {
@@ -125,23 +135,40 @@ export const ProjectProvider = ({ children }) => {
   };
 
   const pollProjectStatus = async (projectId) => {
+    console.log(`Starting to poll project status for: ${projectId}`);
+    let pollCount = 0;
+    const maxPolls = 30; // Maximum 30 polls (60 seconds)
+    
     const pollInterval = setInterval(async () => {
+      pollCount++;
+      console.log(`Polling project ${projectId} (attempt ${pollCount})`);
+      
       try {
-        const response = await axios.get(`${apiBaseUrl}/api/projects/${projectId}`);
+        const response = await axios.get(`${apiBaseUrl}/api/projects/${projectId}`, {
+          timeout: 10000 // 10 second timeout for each poll
+        });
         const project = response.data;
         
+        console.log(`Project ${projectId} status:`, project.status);
         dispatch({ type: 'UPDATE_PROJECT', payload: project });
         
         if (project.status === 'completed' || project.status === 'failed') {
+          console.log(`Project ${projectId} finished with status: ${project.status}`);
           clearInterval(pollInterval);
-          // Set loading to false when project processing is complete
+          dispatch({ type: 'SET_LOADING', payload: false });
+        } else if (pollCount >= maxPolls) {
+          console.log(`Project ${projectId} polling timeout after ${maxPolls} attempts`);
+          clearInterval(pollInterval);
+          dispatch({ type: 'SET_ERROR', payload: 'Project processing timeout. Please check the project status.' });
           dispatch({ type: 'SET_LOADING', payload: false });
         }
       } catch (error) {
-        console.error('Error polling project status:', error);
-        clearInterval(pollInterval);
-        // Set loading to false on error
-        dispatch({ type: 'SET_LOADING', payload: false });
+        console.error(`Error polling project ${projectId} (attempt ${pollCount}):`, error);
+        if (pollCount >= maxPolls) {
+          clearInterval(pollInterval);
+          dispatch({ type: 'SET_ERROR', payload: 'Failed to get project status. Please check the project manually.' });
+          dispatch({ type: 'SET_LOADING', payload: false });
+        }
       }
     }, 2000); // Poll every 2 seconds
   };

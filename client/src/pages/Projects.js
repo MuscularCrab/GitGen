@@ -92,13 +92,25 @@ const Projects = () => {
             Manage and view all your documentation projects
           </p>
         </div>
-        <Link
-          to="/"
-          className="btn-primary inline-flex items-center space-x-2"
-        >
-          <Plus className="w-5 h-5" />
-          <span>New Project</span>
-        </Link>
+        <div className="flex gap-2">
+          <button
+            onClick={() => {
+              clearError();
+              loadProjects();
+            }}
+            className="btn-secondary inline-flex items-center space-x-2"
+          >
+            <Clock className="w-5 h-5" />
+            <span>Refresh</span>
+          </button>
+          <Link
+            to="/"
+            className="btn-primary inline-flex items-center space-x-2"
+          >
+            <Plus className="w-5 h-5" />
+            <span>New Project</span>
+          </Link>
+        </div>
       </div>
 
       {/* Error Display */}
@@ -198,6 +210,24 @@ const Projects = () => {
                   {project.status === 'failed' && (
                     <button className="btn-secondary">
                       Retry
+                    </button>
+                  )}
+                  {project.status === 'processing' && (
+                    <button 
+                      onClick={async () => {
+                        try {
+                          const response = await fetch(`${window.location.origin}/api/projects/${project.id}`);
+                          const updatedProject = await response.json();
+                          console.log('Manual status check for project:', updatedProject);
+                          // Force a refresh of the projects list
+                          loadProjects();
+                        } catch (error) {
+                          console.error('Manual status check failed:', error);
+                        }
+                      }}
+                      className="btn-secondary"
+                    >
+                      Check Status
                     </button>
                   )}
                 </div>
