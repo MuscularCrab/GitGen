@@ -1,7 +1,7 @@
 // Configuration for different environments
 const config = {
   development: {
-    apiBaseUrl: 'http://localhost:3030',
+    apiBaseUrl: '', // Use relative URLs in development to avoid CORS issues
   },
   production: {
     apiBaseUrl: '', // Empty for same-origin requests

@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 
 const Projects = () => {
-  const { projects, loading, error, loadProjects } = useProjects();
+  const { projects, loading, error, loadProjects, clearError } = useProjects();
 
   useEffect(() => {
     loadProjects();
@@ -72,10 +72,11 @@ const Projects = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-16">
+      <div className="card text-center py-16">
         <div className="text-center">
           <Clock className="w-12 h-12 text-primary-600 animate-spin mx-auto mb-4" />
           <p className="text-gray-600">Loading projects...</p>
+          <p className="text-sm text-gray-500 mt-2">This may take a moment...</p>
         </div>
       </div>
     );
@@ -103,9 +104,20 @@ const Projects = () => {
       {/* Error Display */}
       {error && (
         <div className="card border-red-200 bg-red-50">
-          <div className="flex items-center space-x-2 text-red-800">
-            <AlertCircle className="w-5 h-5" />
-            <span>{error}</span>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2 text-red-800">
+              <AlertCircle className="w-5 h-5" />
+              <span>{error}</span>
+            </div>
+            <button
+              onClick={() => {
+                clearError();
+                loadProjects();
+              }}
+              className="btn-secondary text-sm px-3 py-1"
+            >
+              Retry
+            </button>
           </div>
         </div>
       )}

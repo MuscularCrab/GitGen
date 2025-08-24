@@ -45,19 +45,36 @@ export const ProjectProvider = ({ children }) => {
 
   // Load projects on mount
   useEffect(() => {
-    loadProjects();
+    loadProjects().catch(error => {
+      console.error('Failed to load projects on mount:', error);
+      // Don't let the error crash the app
+    });
   }, []);
 
   const loadProjects = async () => {
     try {
       console.log('Loading projects...');
       dispatch({ type: 'SET_LOADING', payload: true });
-      const response = await axios.get(`${apiBaseUrl}/api/projects`);
+      
+      // Add timeout to prevent hanging
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+      
+      const response = await axios.get(`${apiBaseUrl}/api/projects`, {
+        signal: controller.signal,
+        timeout: 10000
+      });
+      
+      clearTimeout(timeoutId);
       console.log('Projects loaded:', response.data);
       dispatch({ type: 'SET_PROJECTS', payload: response.data });
     } catch (error) {
       console.error('Error loading projects:', error);
-      dispatch({ type: 'SET_ERROR', payload: 'Failed to load projects' });
+      if (error.name === 'AbortError') {
+        dispatch({ type: 'SET_ERROR', payload: 'Request timed out. Please check if the backend is running.' });
+      } else {
+        dispatch({ type: 'SET_ERROR', payload: 'Failed to load projects' });
+      }
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false });
     }

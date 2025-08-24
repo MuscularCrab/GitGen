@@ -133,24 +133,44 @@ const Home = () => {
             <div className="flex items-center space-x-2 text-blue-800 mb-2">
               <span className="text-sm font-medium">Debug: Test API Connection</span>
             </div>
-            <button
-              type="button"
-              onClick={async () => {
-                try {
-                  console.log('Testing API connection...');
-                  const response = await fetch(`${apiBaseUrl}/api/test`);
-                  const data = await response.json();
-                  console.log('API test response:', data);
-                  alert(`API is working! Response: ${JSON.stringify(data)}`);
-                } catch (error) {
-                  console.error('API test failed:', error);
-                  alert(`API test failed: ${error.message}`);
-                }
-              }}
-              className="btn-secondary text-sm px-3 py-1"
-            >
-              Test API
-            </button>
+            <div className="space-y-2">
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    console.log('Testing API connection...');
+                    const response = await fetch(`${apiBaseUrl}/api/test`);
+                    const data = await response.json();
+                    console.log('API test response:', data);
+                    alert(`API is working! Response: ${JSON.stringify(data)}`);
+                  } catch (error) {
+                    console.error('API test failed:', error);
+                    alert(`API test failed: ${error.message}`);
+                  }
+                }}
+                className="btn-secondary text-sm px-3 py-1 mr-2"
+              >
+                Test API
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    console.log('Testing health endpoint...');
+                    const response = await fetch(`${apiBaseUrl}/api/health`);
+                    const data = await response.json();
+                    console.log('Health check response:', data);
+                    alert(`Health check passed! Response: ${JSON.stringify(data)}`);
+                  } catch (error) {
+                    console.error('Health check failed:', error);
+                    alert(`Health check failed: ${error.message}`);
+                  }
+                }}
+                className="btn-secondary text-sm px-3 py-1"
+              >
+                Health Check
+              </button>
+            </div>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
