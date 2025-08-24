@@ -1,5 +1,5 @@
-# Use Node.js 18 Alpine as base image
-FROM node:18-alpine
+# Use Node.js 20 Alpine as base image (includes File API and better Web API support)
+FROM node:20-alpine
 
 # Install git (required for repository cloning)
 RUN apk add --no-cache git
