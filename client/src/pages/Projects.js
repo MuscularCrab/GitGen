@@ -207,6 +207,16 @@ const Projects = () => {
                   >
                     View Documentation
                   </Link>
+                  {project.status === 'completed' && (
+                    <a
+                      href={`/api/projects/${project.id}/readme`}
+                      download
+                      className="btn-secondary text-center inline-flex items-center justify-center space-x-2"
+                    >
+                      <Download className="w-4 h-4" />
+                      <span>Download README</span>
+                    </a>
+                  )}
                   {project.status === 'failed' && (
                     <button className="btn-secondary">
                       Retry

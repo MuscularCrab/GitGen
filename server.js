@@ -180,6 +180,25 @@ app.get('/api/projects', (req, res) => {
   res.json(projectList);
 });
 
+// Download generated README
+app.get('/api/projects/:projectId/readme', (req, res) => {
+  const { projectId } = req.params;
+  const project = projects.get(projectId);
+  
+  if (!project) {
+    return res.status(404).json({ error: 'Project not found' });
+  }
+  
+  if (!project.documentation || !project.documentation.generatedReadme) {
+    return res.status(404).json({ error: 'Generated README not found' });
+  }
+  
+  const filename = `${project.projectName}-README.md`;
+  res.setHeader('Content-Type', 'text/markdown');
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  res.send(project.documentation.generatedReadme.raw);
+});
+
 // Process repository and generate documentation
 async function processRepository(projectId, repoUrl) {
   const project = projects.get(projectId);
@@ -238,11 +257,12 @@ async function generateDocumentation(repoPath) {
     readme: null,
     files: [],
     structure: {},
-    summary: {}
+    summary: {},
+    generatedReadme: null
   };
 
   try {
-    // Read README files
+    // Read existing README files
     const readmeFiles = await findReadmeFiles(repoPath);
     if (readmeFiles.length > 0) {
       const readmeContent = await fs.readFile(readmeFiles[0], 'utf-8');
@@ -261,6 +281,9 @@ async function generateDocumentation(repoPath) {
     
     // Generate overall summary
     documentation.summary = generateSummary(documentation);
+    
+    // Generate a new README based on the analysis
+    documentation.generatedReadme = await generateNewReadme(repoPath, documentation);
     
   } catch (error) {
     console.error('Error generating documentation:', error);
@@ -491,6 +514,175 @@ function generateSummary(documentation) {
   });
   
   return summary;
+}
+
+// Generate a new README file based on repository analysis
+async function generateNewReadme(repoPath, documentation) {
+  try {
+    console.log('Generating new README for repository...');
+    
+    // Get package.json if it exists
+    let packageInfo = null;
+    try {
+      const packagePath = path.join(repoPath, 'package.json');
+      const packageContent = await fs.readFile(packagePath, 'utf-8');
+      packageInfo = JSON.parse(packageContent);
+    } catch (error) {
+      // No package.json found, that's okay
+    }
+
+    // Get main entry point
+    let mainFile = 'index.js';
+    if (packageInfo && packageInfo.main) {
+      mainFile = packageInfo.main;
+    } else {
+      // Try to find common entry points
+      const commonEntries = ['index.js', 'main.js', 'app.js', 'server.js'];
+      for (const entry of commonEntries) {
+        try {
+          await fs.access(path.join(repoPath, entry));
+          mainFile = entry;
+          break;
+        } catch (error) {
+          // File doesn't exist
+        }
+      }
+    }
+
+    // Generate README content
+    const readmeContent = generateReadmeContent(documentation, packageInfo, mainFile);
+    
+    console.log('README generation completed');
+    return {
+      content: readmeContent,
+      markdown: marked.parse(readmeContent),
+      raw: readmeContent
+    };
+    
+  } catch (error) {
+    console.error('Error generating README:', error);
+    return null;
+  }
+}
+
+// Generate README content based on analysis
+function generateReadmeContent(documentation, packageInfo, mainFile) {
+  const projectName = packageInfo?.name || 'Project';
+  const description = packageInfo?.description || 'A software project';
+  const version = packageInfo?.version || '1.0.0';
+  const author = packageInfo?.author || 'Developer';
+  const license = packageInfo?.license || 'MIT';
+  
+  let readme = `# ${projectName}\n\n`;
+  readme += `${description}\n\n`;
+  
+  // Badges
+  readme += `![Version](https://img.shields.io/badge/version-${version}-blue.svg)\n`;
+  readme += `![License](https://img.shields.io/badge/license-${license}-green.svg)\n\n`;
+  
+  // Table of Contents
+  readme += `## Table of Contents\n\n`;
+  readme += `- [Installation](#installation)\n`;
+  readme += `- [Usage](#usage)\n`;
+  readme += `- [Features](#features)\n`;
+  readme += `- [API Reference](#api-reference)\n`;
+  readme += `- [Contributing](#contributing)\n`;
+  readme += `- [License](#license)\n\n`;
+  
+  // Installation
+  readme += `## Installation\n\n`;
+  if (packageInfo && packageInfo.scripts && packageInfo.scripts.install) {
+    readme += `\`\`\`bash\nnpm install\n\`\`\`\n\n`;
+  } else {
+    readme += `\`\`\`bash\n# Clone the repository\ngit clone <repository-url>\ncd ${projectName}\n\`\`\`\n\n`;
+  }
+  
+  // Usage
+  readme += `## Usage\n\n`;
+  if (packageInfo && packageInfo.scripts && packageInfo.scripts.start) {
+    readme += `\`\`\`bash\nnpm start\n\`\`\`\n\n`;
+  } else {
+    readme += `\`\`\`bash\n# Run the application\nnode ${mainFile}\n\`\`\`\n\n`;
+  }
+  
+  // Features
+  readme += `## Features\n\n`;
+  if (documentation.files.length > 0) {
+    const languages = Object.keys(documentation.summary.languages || {});
+    readme += `- **Multi-language support**: ${languages.join(', ')}\n`;
+    readme += `- **${documentation.summary.totalFiles} source files**\n`;
+    readme += `- **${documentation.summary.totalDirectories} directories**\n`;
+  }
+  readme += `- Modern architecture\n`;
+  readme += `- Easy to use\n\n`;
+  
+  // API Reference
+  if (documentation.files.some(f => f.functions && f.functions.length > 0)) {
+    readme += `## API Reference\n\n`;
+    readme += `### Functions\n\n`;
+    
+    const allFunctions = [];
+    documentation.files.forEach(file => {
+      if (file.functions) {
+        file.functions.forEach(func => {
+          allFunctions.push({ name: func, file: file.path });
+        });
+      }
+    });
+    
+    // Show first 10 functions
+    allFunctions.slice(0, 10).forEach(func => {
+      readme += `- \`${func.name}\` - Defined in \`${func.file}\`\n`;
+    });
+    
+    if (allFunctions.length > 10) {
+      readme += `- ... and ${allFunctions.length - 10} more functions\n`;
+    }
+    readme += `\n`;
+  }
+  
+  // Project Structure
+  readme += `## Project Structure\n\n`;
+  readme += `\`\`\`\n`;
+  const structureLines = [];
+  
+  function addStructureLines(structure, prefix = '') {
+    Object.entries(structure).forEach(([name, info]) => {
+      if (info.type === 'directory') {
+        structureLines.push(`${prefix}📁 ${name}/`);
+        if (info.children) {
+          addStructureLines(info.children, prefix + '  ');
+        }
+      } else {
+        structureLines.push(`${prefix}📄 ${name}`);
+      }
+    });
+  }
+  
+  addStructureLines(documentation.structure);
+  readme += structureLines.slice(0, 20).join('\n');
+  if (structureLines.length > 20) {
+    readme += `\n... and ${structureLines.length - 20} more files`;
+  }
+  readme += `\n\`\`\`\n\n`;
+  
+  // Contributing
+  readme += `## Contributing\n\n`;
+  readme += `1. Fork the project\n`;
+  readme += `2. Create your feature branch (\`git checkout -b feature/AmazingFeature\`)\n`;
+  readme += `3. Commit your changes (\`git commit -m 'Add some AmazingFeature'\`)\n`;
+  readme += `4. Push to the branch (\`git push origin feature/AmazingFeature\`)\n`;
+  readme += `5. Open a Pull Request\n\n`;
+  
+  // License
+  readme += `## License\n\n`;
+  readme += `This project is licensed under the ${license} License - see the [LICENSE](LICENSE) file for details.\n\n`;
+  
+  // Footer
+  readme += `---\n`;
+  readme += `Generated with ❤️ by GitGen\n`;
+  
+  return readme;
 }
 
 // Serve React app for all other routes

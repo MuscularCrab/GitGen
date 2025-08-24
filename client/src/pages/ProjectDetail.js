@@ -153,7 +153,8 @@ const ProjectDetail = () => {
     { id: 'overview', name: 'Overview', icon: BookOpen },
     { id: 'structure', name: 'File Structure', icon: Folder },
     { id: 'files', name: 'File Details', icon: FileText },
-    { id: 'readme', name: 'README', icon: FileText }
+    { id: 'readme', name: 'Original README', icon: FileText },
+    { id: 'generated', name: 'Generated README', icon: BookOpen }
   ];
 
   return (
@@ -336,7 +337,7 @@ const ProjectDetail = () => {
 
         {activeTab === 'readme' && (
           <div className="card">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">README</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Original README</h3>
             {currentProject.documentation?.readme ? (
               <div>
                 <div className="mb-4 p-3 bg-gray-50 rounded-lg">
@@ -353,6 +354,44 @@ const ProjectDetail = () => {
               <div className="text-center py-8 text-gray-500">
                 <FileText className="w-16 h-16 mx-auto mb-4 text-gray-300" />
                 <p>No README file found in this repository</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'generated' && (
+          <div className="card">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Generated README</h3>
+              {currentProject.documentation?.generatedReadme && (
+                <a
+                  href={`/api/projects/${projectId}/readme`}
+                  download
+                  className="btn-primary inline-flex items-center space-x-2"
+                >
+                  <Download className="w-4 h-4" />
+                  <span>Download README.md</span>
+                </a>
+              )}
+            </div>
+            
+            {currentProject.documentation?.generatedReadme ? (
+              <div>
+                <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                  <p className="text-sm text-green-800">
+                    <strong>✨ New README Generated!</strong> This is a brand new README file created specifically for your project based on code analysis.
+                  </p>
+                </div>
+                <div 
+                  className="prose max-w-none border rounded-lg p-6 bg-gray-50"
+                  dangerouslySetInnerHTML={{ __html: currentProject.documentation.generatedReadme.markdown }}
+                />
+              </div>
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                <BookOpen className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+                <p>Generated README not available yet</p>
+                <p className="text-sm mt-2">This will appear once the project analysis is complete.</p>
               </div>
             )}
           </div>

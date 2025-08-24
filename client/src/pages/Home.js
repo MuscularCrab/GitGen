@@ -83,10 +83,10 @@ const Home = () => {
             Generate Documentation
             <span className="text-primary-600"> Automatically</span>
           </h1>
-          <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
-            Transform your Git repositories into beautiful, comprehensive documentation 
-            with just a few clicks. Save hours of manual work and keep your docs always up to date.
-          </p>
+                     <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
+             Transform your Git repositories into beautiful, comprehensive documentation 
+             with just a few clicks. Generate brand new README files automatically based on your code analysis.
+           </p>
           
           {/* CTA Buttons */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -114,9 +114,9 @@ const Home = () => {
             <h2 className="text-3xl font-bold text-gray-900 mb-2">
               Start Your First Project
             </h2>
-            <p className="text-gray-600">
-              Enter your Git repository URL and we'll generate comprehensive documentation automatically.
-            </p>
+                         <p className="text-gray-600">
+               Enter your Git repository URL and we'll analyze your code to generate a brand new README file automatically.
+             </p>
           </div>
 
           {error && (
@@ -380,29 +380,29 @@ const Home = () => {
             </p>
           </div>
 
-          <div className="text-center">
-            <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl font-bold text-primary-600">
-              2
-            </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
-              Automatic Analysis
-            </h3>
-            <p className="text-gray-600">
-              Our AI analyzes your code and generates comprehensive documentation
-            </p>
-          </div>
+                     <div className="text-center">
+             <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl font-bold text-primary-600">
+               2
+             </div>
+             <h3 className="text-lg font-semibold text-gray-900 mb-2">
+               Code Analysis
+             </h3>
+             <p className="text-gray-600">
+               Our system analyzes your code structure, functions, and dependencies
+             </p>
+           </div>
 
-          <div className="text-center">
-            <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl font-bold text-primary-600">
-              3
-            </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
-              Beautiful Docs
-            </h3>
-            <p className="text-gray-600">
-              Get professional documentation ready to share with your team
-            </p>
-          </div>
+                     <div className="text-center">
+             <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl font-bold text-primary-600">
+               3
+             </div>
+             <h3 className="text-lg font-semibold text-gray-900 mb-2">
+               New README Generated
+             </h3>
+             <p className="text-gray-600">
+               Get a professional README file ready to use in your repository
+             </p>
+           </div>
         </div>
       </section>
     </div>
