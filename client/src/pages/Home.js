@@ -25,8 +25,12 @@ const Home = () => {
     e.preventDefault();
     clearError();
     
+    console.log('Form submitted with data:', formData);
+    
     try {
+      console.log('Calling createProject...');
       const projectId = await createProject(formData);
+      console.log('Project created successfully with ID:', projectId);
       // Redirect to project detail page
       window.location.href = `/projects/${projectId}`;
     } catch (error) {

@@ -4,6 +4,11 @@ FROM node:20-alpine
 # Install git (required for repository cloning)
 RUN apk add --no-cache git
 
+# Configure git for anonymous access
+RUN git config --global user.name "GitGen Bot" && \
+    git config --global user.email "bot@gitgen.com" && \
+    git config --global init.defaultBranch main
+
 # Set working directory
 WORKDIR /app
 
@@ -25,7 +30,7 @@ RUN npm run build:client
 RUN mkdir -p temp uploads
 
 # Expose port
-EXPOSE 3001
+EXPOSE 3030
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \

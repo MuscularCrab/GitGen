@@ -11,7 +11,7 @@ const axios = require('axios');
 const cheerio = require('cheerio');
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3030;
 
 // Middleware
 app.use(cors());
@@ -39,13 +39,29 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'healthy', service: 'GitGen' });
 });
 
+// Test endpoint for debugging
+app.get('/api/test', (req, res) => {
+  res.json({ 
+    message: 'Backend is working!', 
+    timestamp: new Date().toISOString(),
+    projectsCount: projects.size
+  });
+});
+
 // Create new documentation project
 app.post('/api/projects', async (req, res) => {
   try {
     const { repoUrl, projectName, description } = req.body;
     
+    console.log('Creating project:', { repoUrl, projectName, description });
+    
     if (!repoUrl || !projectName) {
       return res.status(400).json({ error: 'Repository URL and project name are required' });
+    }
+
+    // Validate repository URL format
+    if (!repoUrl.startsWith('https://') && !repoUrl.startsWith('git@')) {
+      return res.status(400).json({ error: 'Invalid repository URL format. Use HTTPS or SSH format.' });
     }
 
     const projectId = uuidv4();
@@ -102,29 +118,38 @@ async function processRepository(projectId, repoUrl) {
   const project = projects.get(projectId);
   if (!project) return;
 
+  console.log(`Starting to process repository: ${repoUrl} for project: ${projectId}`);
+
   try {
     const tempDir = `temp/${projectId}`;
+    console.log(`Creating temp directory: ${tempDir}`);
     await fs.mkdir(tempDir, { recursive: true });
 
     // Clone repository
+    console.log(`Cloning repository: ${repoUrl}`);
     const git = simpleGit();
     await git.clone(repoUrl, tempDir);
+    console.log(`Repository cloned successfully to: ${tempDir}`);
 
     // Generate documentation
+    console.log(`Generating documentation for: ${tempDir}`);
     const documentation = await generateDocumentation(tempDir);
     
     // Update project
     project.status = 'completed';
     project.documentation = documentation;
     project.completedAt = new Date().toISOString();
+    console.log(`Project ${projectId} completed successfully`);
     
     // Cleanup
+    console.log(`Cleaning up temp directory: ${tempDir}`);
     await fs.rm(tempDir, { recursive: true, force: true });
     
   } catch (error) {
-    console.error('Error processing repository:', error);
+    console.error(`Error processing repository for project ${projectId}:`, error);
     project.status = 'failed';
     project.error = error.message;
+    console.log(`Project ${projectId} failed with error: ${error.message}`);
   }
 }
 

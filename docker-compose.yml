@@ -4,16 +4,16 @@ services:
   gitgen:
     build: .
     ports:
-      - "3001:3001"
+      - "3030:3030"
     environment:
       - NODE_ENV=production
-      - PORT=3001
+      - PORT=3030
     volumes:
       - ./temp:/app/temp
       - ./uploads:/app/uploads
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3001/api/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"]
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3030/api/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -23,10 +23,10 @@ services:
   gitgen-dev:
     build: .
     ports:
-      - "3002:3001"
+      - "3002:3030"
     environment:
       - NODE_ENV=development
-      - PORT=3001
+      - PORT=3030
     volumes:
       - .:/app
       - /app/node_modules

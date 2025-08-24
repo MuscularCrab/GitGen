@@ -74,16 +74,17 @@ export const ProjectProvider = ({ children }) => {
       
       dispatch({ type: 'ADD_PROJECT', payload: newProject });
       
-      // Start polling for updates
+      // Start polling for updates - don't set loading to false here
+      // Loading will be set to false when the project status changes
       pollProjectStatus(response.data.projectId);
       
       return response.data.projectId;
     } catch (error) {
       dispatch({ type: 'SET_ERROR', payload: 'Failed to create project' });
-      throw error;
-    } finally {
       dispatch({ type: 'SET_LOADING', payload: false });
+      throw error;
     }
+    // Removed the finally block - loading state is managed by polling
   };
 
   const loadProject = async (projectId) => {
@@ -110,10 +111,14 @@ export const ProjectProvider = ({ children }) => {
         
         if (project.status === 'completed' || project.status === 'failed') {
           clearInterval(pollInterval);
+          // Set loading to false when project processing is complete
+          dispatch({ type: 'SET_LOADING', payload: false });
         }
       } catch (error) {
         console.error('Error polling project status:', error);
         clearInterval(pollInterval);
+        // Set loading to false on error
+        dispatch({ type: 'SET_LOADING', payload: false });
       }
     }, 2000); // Poll every 2 seconds
   };
