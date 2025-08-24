@@ -215,6 +215,17 @@ const Home = () => {
                  >
                    Test Project Creation
                  </button>
+                 <button
+                   type="button"
+                   onClick={() => {
+                     console.log('Emergency stop: resetting loading state');
+                     // Force reset the loading state
+                     window.location.reload();
+                   }}
+                   className="btn-secondary text-sm px-3 py-1 bg-red-100 text-red-800 border-red-300 hover:bg-red-200"
+                 >
+                   Emergency Stop
+                 </button>
                </div>
              </div>
 
