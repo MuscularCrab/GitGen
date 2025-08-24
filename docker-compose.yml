@@ -9,8 +9,8 @@ services:
       - NODE_ENV=production
       - PORT=3030
     volumes:
-      - ./temp:/app/temp
-      - ./uploads:/app/uploads
+      - gitgen-temp:/app/temp
+      - gitgen-uploads:/app/uploads
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "node", "-e", "require('http').get('http://localhost:3030/api/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"]
@@ -28,9 +28,15 @@ services:
       - NODE_ENV=development
       - PORT=3030
     volumes:
-      - .:/app
-      - /app/node_modules
-      - /app/client/node_modules
+      - ./src:/app/src
+      - ./client/src:/app/client/src
+      - ./server.js:/app/server.js
+      - ./package.json:/app/package.json
+      - ./client/package.json:/app/client/package.json
     command: npm run dev
     profiles:
       - dev
+
+volumes:
+  gitgen-temp:
+  gitgen-uploads:
