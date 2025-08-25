@@ -13,6 +13,7 @@ import {
   Clock,
   AlertCircle
 } from 'lucide-react';
+import Loader from '../components/Loader';
 
 const Home = () => {
   const { createProject, loading, error, clearError } = useProjects();
@@ -262,7 +263,7 @@ const Home = () => {
              >
                {loading || progress.isProcessing ? (
                  <div className="flex items-center justify-center space-x-2">
-                   <Clock className="w-5 h-5 animate-spin" />
+                   <Loader size="small" />
                    <span>Processing...</span>
                  </div>
                ) : (

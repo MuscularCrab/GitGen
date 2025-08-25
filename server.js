@@ -203,6 +203,44 @@ app.get('/api/projects', (req, res) => {
   res.json(projectList);
 });
 
+// Get project progress
+app.get('/api/projects/:projectId/progress', (req, res) => {
+  const { projectId } = req.params;
+  const project = projects.get(projectId);
+  
+  if (!project) {
+    return res.status(404).json({ error: 'Project not found' });
+  }
+  
+  if (!project.progress) {
+    return res.json({
+      currentStep: 'unknown',
+      step: 0,
+      totalSteps: 6,
+      message: 'Progress not available',
+      percentage: 0,
+      estimatedTime: null
+    });
+  }
+  
+  // Calculate percentage and ETA
+  const percentage = Math.round((project.progress.step / project.progress.totalSteps) * 100);
+  let estimatedTime = null;
+  
+  if (project.progress.startTime && project.progress.step > 0) {
+    const elapsed = Date.now() - project.progress.startTime;
+    const avgTimePerStep = elapsed / project.progress.step;
+    const remainingSteps = project.progress.totalSteps - project.progress.step;
+    estimatedTime = Math.round((avgTimePerStep * remainingSteps) / 1000);
+  }
+  
+  res.json({
+    ...project.progress,
+    percentage,
+    estimatedTime
+  });
+});
+
 // Download generated README
 app.get('/api/projects/:projectId/readme', (req, res) => {
   const { projectId } = req.params;
@@ -250,11 +288,29 @@ async function processRepository(projectId, repoUrl) {
   console.log(`Starting to process repository: ${repoUrl} for project: ${projectId}`);
 
   try {
+    // Initialize progress tracking
+    project.progress = {
+      currentStep: 'initializing',
+      step: 0,
+      totalSteps: 6,
+      message: 'Initializing repository processing...',
+      startTime: Date.now(),
+      estimatedTime: null
+    };
+
     const tempDir = `temp/${projectId}`;
     console.log(`Creating temp directory: ${tempDir}`);
+    
+    // Step 1: Create temp directory
+    project.progress.currentStep = 'creating_temp';
+    project.progress.step = 1;
+    project.progress.message = 'Creating temporary directory...';
     await fs.mkdir(tempDir, { recursive: true });
 
-    // Clone repository with timeout
+    // Step 2: Clone repository
+    project.progress.currentStep = 'cloning';
+    project.progress.step = 2;
+    project.progress.message = 'Cloning repository...';
     console.log(`Cloning repository: ${repoUrl}`);
     const git = simpleGit();
     
@@ -272,15 +328,41 @@ async function processRepository(projectId, repoUrl) {
       throw new Error(`Failed to clone repository: ${cloneError.message}`);
     }
 
-    // Generate documentation
+    // Step 3: Analyze repository structure
+    project.progress.currentStep = 'analyzing';
+    project.progress.step = 3;
+    project.progress.message = 'Analyzing repository structure...';
+    console.log(`Analyzing repository structure for: ${tempDir}`);
+
+    // Step 4: Generate documentation
+    project.progress.currentStep = 'generating';
+    project.progress.step = 4;
+    project.progress.message = 'Generating documentation...';
     console.log(`Generating documentation for: ${tempDir}`);
-    const documentation = await generateDocumentation(tempDir);
+    const documentation = await generateDocumentation(tempDir, project);
+    
+    // Step 5: Generate AI README
+    project.progress.currentStep = 'ai_generation';
+    project.progress.step = 5;
+    project.progress.message = 'Generating AI-powered README...';
+    console.log(`Generating AI README for: ${tempDir}`);
+
+    // Step 6: Finalizing
+    project.progress.currentStep = 'finalizing';
+    project.progress.step = 6;
+    project.progress.message = 'Finalizing documentation...';
     
     // Update project
     project.status = 'completed';
     project.documentation = documentation;
     project.completedAt = new Date().toISOString();
-    console.log(`Project ${projectId} completed successfully`);
+    
+    // Calculate total time and update progress
+    const totalTime = Date.now() - project.progress.startTime;
+    project.progress.estimatedTime = Math.round(totalTime / 1000);
+    project.progress.message = 'Documentation generation completed!';
+    
+    console.log(`Project ${projectId} completed successfully in ${project.progress.estimatedTime}s`);
     
     // Cleanup
     console.log(`Cleaning up temp directory: ${tempDir}`);
@@ -290,12 +372,17 @@ async function processRepository(projectId, repoUrl) {
     console.error(`Error processing repository for project ${projectId}:`, error);
     project.status = 'failed';
     project.error = error.message;
+    project.progress = {
+      ...project.progress,
+      currentStep: 'failed',
+      message: `Failed: ${error.message}`
+    };
     console.log(`Project ${projectId} failed with error: ${error.message}`);
   }
 }
 
 // Generate documentation from repository
-async function generateDocumentation(repoPath) {
+async function generateDocumentation(repoPath, project = null) {
   const documentation = {
     readme: null,
     files: [],
@@ -306,6 +393,9 @@ async function generateDocumentation(repoPath) {
 
   try {
     // Read existing README files
+    if (project?.progress) {
+      project.progress.message = 'Reading existing README files...';
+    }
     const readmeFiles = await findReadmeFiles(repoPath);
     if (readmeFiles.length > 0) {
       const readmeContent = await fs.readFile(readmeFiles[0], 'utf-8');
@@ -317,15 +407,27 @@ async function generateDocumentation(repoPath) {
     }
 
     // Analyze repository structure
+    if (project?.progress) {
+      project.progress.message = 'Analyzing repository structure...';
+    }
     documentation.structure = await analyzeRepositoryStructure(repoPath);
     
     // Generate file summaries
+    if (project?.progress) {
+      project.progress.message = 'Generating file summaries...';
+    }
     documentation.files = await generateFileSummaries(repoPath);
     
     // Generate overall summary
+    if (project?.progress) {
+      project.progress.message = 'Generating project summary...';
+    }
     documentation.summary = generateSummary(documentation);
     
     // Generate a new README based on the analysis
+    if (project?.progress) {
+      project.progress.message = 'Generating AI-powered README...';
+    }
     documentation.generatedReadme = await generateNewReadme(repoPath, documentation);
     
   } catch (error) {

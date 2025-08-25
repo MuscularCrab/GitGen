@@ -13,6 +13,7 @@ import {
   Folder,
   Download
 } from 'lucide-react';
+import Loader from '../components/Loader';
 
 const Projects = () => {
   const { projects, loading, error, loadProjects, clearError } = useProjects();
@@ -31,7 +32,7 @@ const Projects = () => {
       case 'completed':
         return <CheckCircle className="w-5 h-5 text-green-600" />;
       case 'processing':
-        return <Clock className="w-5 h-5 text-blue-600 animate-pulse" />;
+        return <Loader size="small" />;
       case 'failed':
         return <AlertCircle className="w-5 h-5 text-red-600" />;
       default:
@@ -80,7 +81,7 @@ const Projects = () => {
     return (
       <div className="card text-center py-16">
         <div className="text-center">
-          <Clock className="w-12 h-12 text-primary-600 animate-spin mx-auto mb-4" />
+          <Loader size="default" className="mx-auto mb-4" />
           <p className="text-gray-600">Loading projects...</p>
           <p className="text-sm text-gray-500 mt-2">This may take a moment...</p>
           <button

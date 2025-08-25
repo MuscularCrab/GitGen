@@ -16,6 +16,7 @@ import {
   Share2,
   ExternalLink
 } from 'lucide-react';
+import Loader from '../components/Loader';
 
 const ProjectDetail = () => {
   const { projectId } = useParams();
@@ -23,6 +24,7 @@ const ProjectDetail = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [expandedFiles, setExpandedFiles] = useState(new Set());
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [progress, setProgress] = useState(null);
 
   useEffect(() => {
     if (projectId) {
@@ -30,16 +32,38 @@ const ProjectDetail = () => {
     }
   }, [projectId, loadProject]);
 
-  // Auto-refresh project status when processing
+  // Fetch progress updates when processing
+  const fetchProgress = useCallback(async () => {
+    if (currentProject?.status === 'processing') {
+      try {
+        const response = await fetch(`/api/projects/${projectId}/progress`);
+        if (response.ok) {
+          const progressData = await response.json();
+          setProgress(progressData);
+        }
+      } catch (error) {
+        console.error('Failed to fetch progress:', error);
+      }
+    }
+  }, [currentProject?.status, projectId]);
+
+  // Auto-refresh project status and progress when processing
   useEffect(() => {
     let refreshInterval;
     
     if (currentProject?.status === 'processing') {
-      // Refresh every 3 seconds while processing
+      // Fetch progress immediately
+      fetchProgress();
+      
+      // Refresh every 2 seconds while processing
       refreshInterval = setInterval(() => {
-        console.log('Auto-refreshing project status...');
+        console.log('Auto-refreshing project status and progress...');
         loadProject(projectId);
-      }, 3000);
+        fetchProgress();
+      }, 2000);
+    } else {
+      // Clear progress when not processing
+      setProgress(null);
     }
     
     return () => {
@@ -47,7 +71,7 @@ const ProjectDetail = () => {
         clearInterval(refreshInterval);
       }
     };
-  }, [currentProject?.status, projectId, loadProject]);
+  }, [currentProject?.status, projectId, loadProject, fetchProgress]);
 
   // Show completion notification
   useEffect(() => {
@@ -169,7 +193,7 @@ const ProjectDetail = () => {
     return (
       <div className="flex items-center justify-center py-16">
         <div className="text-center">
-          <Clock className="w-12 h-12 text-primary-600 animate-spin mx-auto mb-4" />
+          <Loader size="default" className="mx-auto mb-4" />
           <p className="text-gray-600">Loading project...</p>
         </div>
       </div>
@@ -244,13 +268,13 @@ const ProjectDetail = () => {
       <div className="card">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            {currentProject.status === 'completed' ? (
-              <CheckCircle className="w-8 h-8 text-green-600" />
-            ) : currentProject.status === 'processing' ? (
-              <Clock className="w-8 h-8 text-blue-600 animate-pulse" />
-            ) : (
-              <AlertCircle className="w-8 h-8 text-red-600" />
-            )}
+                         {currentProject.status === 'completed' ? (
+               <CheckCircle className="w-8 h-8 text-green-600" />
+             ) : currentProject.status === 'processing' ? (
+               <Loader size="small" />
+             ) : (
+               <AlertCircle className="w-8 h-8 text-red-600" />
+             )}
             <div>
               <h3 className="text-lg font-semibold text-gray-900">
                 Status: {currentProject.status.charAt(0).toUpperCase() + currentProject.status.slice(1)}
@@ -280,54 +304,74 @@ const ProjectDetail = () => {
         <div className="card">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-gray-900">Processing Progress</h3>
-            <div className="flex items-center space-x-2 text-sm text-gray-600">
-              <Clock className="w-4 h-4 animate-pulse" />
-              <span>Processing...</span>
-            </div>
+                         <div className="flex items-center space-x-2 text-sm text-gray-600">
+               <Loader size="small" />
+               <span>{progress?.message || 'Processing...'}</span>
+             </div>
           </div>
           
           {/* Progress Bar */}
           <div className="w-full bg-gray-200 rounded-full h-3 mb-3 relative overflow-hidden">
             <div 
-              className="bg-blue-600 h-3 rounded-full transition-all duration-1000 ease-out animate-pulse"
-              style={{ width: '100%' }}
+              className="bg-blue-600 h-3 rounded-full transition-all duration-500 ease-out"
+              style={{ width: `${progress?.percentage || 0}%` }}
             ></div>
             {/* Animated progress indicator */}
             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-30 animate-pulse"></div>
           </div>
           
-          {/* Progress Stages */}
-          <div className="grid grid-cols-5 gap-2 text-xs text-gray-600">
-            <div className="text-center">
-              <div className="w-3 h-3 bg-blue-600 rounded-full mx-auto mb-1"></div>
-              <span>Clone</span>
-            </div>
-            <div className="text-center">
-              <div className="w-3 h-3 bg-blue-600 rounded-full mx-auto mb-1"></div>
-              <span>Analyze</span>
-            </div>
-            <div className="text-center">
-              <div className="w-3 h-3 bg-blue-600 rounded-full mx-auto mb-1"></div>
-              <span>Scan</span>
-            </div>
-            <div className="text-center">
-              <div className="w-3 h-3 bg-blue-600 rounded-full mx-auto mb-1"></div>
-              <span>Process</span>
-            </div>
-            <div className="text-center">
-              <div className="w-3 h-3 bg-gray-300 rounded-full mx-auto mb-1"></div>
-              <span>Complete</span>
-            </div>
+          {/* Progress Info */}
+          <div className="flex justify-between items-center mb-4 text-sm">
+            <span className="text-gray-600">
+              Step {progress?.step || 0} of {progress?.totalSteps || 6}
+            </span>
+            <span className="text-blue-600 font-medium">
+              {progress?.percentage || 0}% Complete
+            </span>
           </div>
           
-          <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          {/* Progress Stages */}
+          <div className="grid grid-cols-6 gap-2 text-xs text-gray-600 mb-4">
+            {[
+              { step: 1, name: 'Init', key: 'initializing' },
+              { step: 2, name: 'Temp', key: 'creating_temp' },
+              { step: 3, name: 'Clone', key: 'cloning' },
+              { step: 4, name: 'Analyze', key: 'analyzing' },
+              { step: 5, name: 'Generate', key: 'generating' },
+              { step: 6, name: 'Complete', key: 'finalizing' }
+            ].map((stage) => (
+              <div key={stage.key} className="text-center">
+                <div className={`w-3 h-3 rounded-full mx-auto mb-1 ${
+                  progress?.step >= stage.step ? 'bg-blue-600' : 'bg-gray-300'
+                }`}></div>
+                <span className={progress?.step >= stage.step ? 'font-medium text-blue-600' : ''}>
+                  {stage.name}
+                </span>
+              </div>
+            ))}
+          </div>
+          
+          {/* ETA and Status */}
+          {progress?.estimatedTime && (
+            <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-green-800">
+                  <strong>Estimated Time Remaining:</strong> ~{progress.estimatedTime} seconds
+                </span>
+                <span className="text-xs text-green-600">
+                  {progress.estimatedTime < 60 ? `${progress.estimatedTime}s` : `${Math.round(progress.estimatedTime / 60)}m ${progress.estimatedTime % 60}s`}
+                </span>
+              </div>
+            </div>
+          )}
+          
+          <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
             <p className="text-sm text-blue-800">
-              <strong>Processing:</strong> Repository is being analyzed and documentation is being generated. 
-              This may take a few minutes depending on the repository size.
+              <strong>Current Step:</strong> {progress?.message || 'Initializing...'}
             </p>
             <div className="mt-3 flex justify-between items-center">
               <span className="text-xs text-blue-700">
-                Auto-refreshing every 3 seconds...
+                Auto-refreshing every 2 seconds...
               </span>
               <button
                 onClick={async () => {
@@ -335,6 +379,7 @@ const ProjectDetail = () => {
                   setIsRefreshing(true);
                   try {
                     await loadProject(projectId);
+                    await fetchProgress();
                   } finally {
                     setIsRefreshing(false);
                   }
@@ -342,8 +387,8 @@ const ProjectDetail = () => {
                 disabled={isRefreshing}
                 className="btn-secondary text-xs px-3 py-1 disabled:opacity-50"
               >
-                <Clock className={`w-3 h-3 mr-1 inline ${isRefreshing ? 'animate-spin' : ''}`} />
-                {isRefreshing ? 'Refreshing...' : 'Refresh Now'}
+                                 {isRefreshing ? <Loader size="small" className="w-3 h-3 mr-1 inline" /> : <Clock className="w-3 h-3 mr-1 inline" />}
+                 {isRefreshing ? 'Refreshing...' : 'Refresh Now'}
               </button>
             </div>
           </div>
