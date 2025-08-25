@@ -180,26 +180,46 @@
   }
   
   body {
-    background-color: var(--bg-primary);
+    background-color: transparent;
     color: var(--text-primary);
     transition: background-color 0.3s ease, color 0.3s ease;
     min-height: 100vh;
   }
   
-  /* Ensure the root element has dark theme by default */
+  /* Light mode body background */
+  html[data-theme="light"] body {
+    background-color: #f8fafc;
+  }
+  
+  /* Dark mode body background */
+  html[data-theme="dark"] body {
+    background-color: var(--bg-primary);
+  }
+  
+  /* Ensure the root element has appropriate theme */
   :root {
-    color-scheme: dark;
+    color-scheme: light;
+  }
+  
+  /* Light mode defaults */
+  html[data-theme="light"] {
+    background-color: var(--bg-primary);
+  }
+  
+  html[data-theme="light"] body {
+    background-color: var(--bg-primary);
   }
   
   /* Ensure all main containers use theme colors */
   #root {
-    background-color: var(--bg-primary);
+    background-color: transparent;
     min-height: 100vh;
   }
   
-  /* Force dark mode on page load */
+  /* Dark mode overrides */
   html[data-theme="dark"] {
     background-color: var(--bg-primary);
+    color-scheme: dark;
   }
   
   html[data-theme="dark"] body {
@@ -208,18 +228,18 @@
   
   /* Ensure main sections use theme colors */
   main, section, div[class*="space-y-"] {
-    background-color: var(--bg-primary);
+    background-color: transparent;
   }
   
   /* Ensure the main app container uses theme colors */
   .App {
-    background-color: var(--bg-primary);
+    background-color: transparent;
     min-height: 100vh;
   }
   
   /* Ensure all page containers use theme colors */
   .space-y-8, .space-y-16 {
-    background-color: var(--bg-primary);
+    background-color: transparent;
   }
   
   /* Specific dark mode overrides for common elements */

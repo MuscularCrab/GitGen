@@ -371,44 +371,75 @@ const Home = () => {
             )}
           </div>
 
-          {/* Features Section */}
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8">
-            <h2 className="text-3xl font-bold text-center text-gray-900 dark:text-white mb-8">
-              Why Choose GitGen?
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              <div className="text-center">
-                <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <svg className="w-8 h-8 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                  </svg>
-                </div>
-                <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Lightning Fast</h3>
-                <p className="text-gray-600 dark:text-gray-400">Generate professional READMEs in minutes, not hours</p>
-              </div>
-              <div className="text-center">
-                <div className="w-16 h-16 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <svg className="w-8 h-8 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">AI-Powered</h3>
-                <p className="text-gray-600 dark:text-gray-400">Advanced AI analyzes your code and generates intelligent documentation</p>
-              </div>
-              <div className="text-center">
-                <div className="w-16 h-16 bg-purple-100 dark:bg-purple-900 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <svg className="w-8 h-8 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                  </svg>
-                </div>
-                <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Professional Quality</h3>
-                <p className="text-gray-600 dark:text-gray-400">GitHub-ready documentation that impresses contributors and users</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+                     {/* Features Section */}
+           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8">
+             <h2 className="text-3xl font-bold text-center text-gray-900 dark:text-white mb-8">
+               Why Choose GitGen?
+             </h2>
+             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+               <div className="text-center">
+                 <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center mx-auto mb-4">
+                   <svg className="w-8 h-8 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                   </svg>
+                 </div>
+                 <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Lightning Fast</h3>
+                 <p className="text-gray-600 dark:text-gray-400">Generate professional READMEs in minutes, not hours</p>
+               </div>
+               <div className="text-center">
+                 <div className="w-16 h-16 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center mx-auto mb-4">
+                   <svg className="w-8 h-8 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                   </svg>
+                 </div>
+                 <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">AI-Powered</h3>
+                 <p className="text-gray-600 dark:text-gray-400">Advanced AI analyzes your code and generates intelligent documentation</p>
+               </div>
+               <div className="text-center">
+                 <div className="w-16 h-16 bg-purple-100 dark:bg-purple-900 rounded-full flex items-center justify-center mx-auto mb-4">
+                   <svg className="w-8 h-8 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                   </svg>
+                 </div>
+                 <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Professional Quality</h3>
+                 <p className="text-gray-600 dark:text-gray-400">GitHub-ready documentation that impresses contributors and users</p>
+               </div>
+             </div>
+           </div>
+
+           {/* Footer */}
+           <footer className="mt-16 py-8 border-t border-gray-200 dark:border-gray-700">
+             <div className="text-center">
+               <div className="mb-4">
+                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                   Powered by Ventris Labs
+                 </h3>
+                 <p className="text-sm text-gray-600 dark:text-gray-400">
+                   Advanced AI solutions for modern development workflows
+                 </p>
+               </div>
+               <div className="flex flex-col sm:flex-row items-center justify-center space-y-2 sm:space-y-0 sm:space-x-6 text-sm text-gray-500 dark:text-gray-400">
+                 <span>© 2024 Ventris Labs. All rights reserved.</span>
+                 <span>•</span>
+                 <span>Built with React & Node.js</span>
+                 <span>•</span>
+                 <span>AI-powered by Gemini</span>
+               </div>
+               <div className="mt-4">
+                 <a 
+                   href="https://ventrislabs.com" 
+                   target="_blank" 
+                   rel="noopener noreferrer"
+                   className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 transition-colors duration-200"
+                 >
+                   Visit Ventris Labs →
+                 </a>
+               </div>
+             </div>
+           </footer>
+         </div>
+       </div>
+     </div>
   );
 };
 

@@ -437,6 +437,36 @@ const Projects = () => {
          </div>
       ) : null}
       
+      {/* Footer */}
+      <footer className="mt-16 py-8 border-t border-gray-200 dark:border-gray-700">
+        <div className="text-center">
+          <div className="mb-4">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+              Powered by Ventris Labs
+            </h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Advanced AI solutions for modern development workflows
+            </p>
+          </div>
+          <div className="flex flex-col sm:flex-row items-center justify-center space-y-2 sm:space-y-0 sm:space-x-6 text-sm text-gray-500 dark:text-gray-400">
+            <span>© 2024 Ventris Labs. All rights reserved.</span>
+            <span>•</span>
+            <span>Built with React & Node.js</span>
+            <span>•</span>
+            <span>AI-powered by Gemini</span>
+          </div>
+          <div className="mt-4">
+            <a 
+              href="https://ventrislabs.com" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 transition-colors duration-200"
+            >
+              Visit Ventris Labs →
+            </a>
+          </div>
+        </div>
+      </footer>
       
     </div>
   );
