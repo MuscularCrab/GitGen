@@ -173,7 +173,73 @@ const Projects = () => {
          <p>Error: {error || 'None'}</p>
          <p>API Base URL: {window.location.origin}</p>
          <p>Projects Data: {JSON.stringify(projects, null, 2)}</p>
-       </div>
+         <p>Raw Projects: {JSON.stringify(projects, null, 2)}</p>
+         <p>Filtered Projects: {JSON.stringify(projects.filter(p => p && p.id && p.repoUrl), null, 2)}</p>
+          
+          {/* Debug Buttons */}
+          <div className="mt-4 space-y-2">
+            <button 
+              onClick={async () => {
+                try {
+                  const response = await fetch(`${window.location.origin}/api/debug/projects`);
+                  const data = await response.json();
+                  console.log('Debug projects response:', data);
+                  alert(`Debug info logged to console. Total projects: ${data.totalProjects}`);
+                } catch (error) {
+                  console.error('Debug endpoint error:', error);
+                  alert('Debug endpoint error: ' + error.message);
+                }
+              }}
+              className="btn-secondary text-xs px-2 py-1"
+            >
+              Debug Projects (Backend)
+            </button>
+            
+            <button 
+              onClick={async () => {
+                try {
+                  const response = await fetch(`${window.location.origin}/api/test`);
+                  const data = await response.json();
+                  console.log('Test endpoint response:', data);
+                  alert(`Backend test: ${data.message}. Projects in memory: ${data.projectsCount}`);
+                } catch (error) {
+                  console.error('Test endpoint error:', error);
+                  alert('Test endpoint error: ' + error.message);
+                }
+              }}
+              className="btn-secondary text-xs px-2 py-1 ml-2"
+            >
+              Test Backend
+            </button>
+            
+            <button 
+              onClick={async () => {
+                try {
+                  const response = await fetch(`${window.location.origin}/api/test-create-project`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      repoUrl: 'https://github.com/test/test-repo',
+                      projectName: 'Test Project',
+                      description: 'Test project for debugging'
+                    })
+                  });
+                  const data = await response.json();
+                  console.log('Test create project response:', data);
+                  alert(`Test project created: ${data.isValid ? 'Valid' : 'Invalid'}. Check console for details.`);
+                  // Refresh projects after creating test project
+                  setTimeout(() => window.location.reload(), 1000);
+                } catch (error) {
+                  console.error('Test create project error:', error);
+                  alert('Test create project error: ' + error.message);
+                }
+              }}
+              className="btn-secondary text-xs px-2 py-1 ml-2"
+            >
+              Create Test Project
+            </button>
+          </div>
+        </div>
 
                     {/* Projects Grid */}
        {!loading && (!projects || projects.length === 0 || projects.filter(p => p && p.id && p.repoUrl).length === 0) ? (

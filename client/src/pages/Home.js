@@ -63,11 +63,42 @@ const Home = () => {
       const projectId = await createProject(projectData);
       console.log('Project created successfully with ID:', projectId);
       
-      // Redirect to project detail page immediately
-      window.location.href = `/projects/${projectId}`;
+      // First refresh: After repository clone is complete
+      console.log('Repository clone completed, refreshing page...');
+      window.location.reload();
+      
+      // Wait a moment for the refresh to complete, then start monitoring for AI completion
+      setTimeout(() => {
+        // Start monitoring project status for AI generation completion
+        monitorProjectStatus(projectId);
+      }, 1000);
       
     } catch (error) {
       console.error('Failed to create project:', error);
+    }
+  };
+
+  // Function to monitor project status and refresh when AI generation completes
+  const monitorProjectStatus = async (projectId) => {
+    try {
+      const response = await fetch(`/api/projects/${projectId}`);
+      const project = await response.json();
+      
+      if (project.status === 'completed' || project.status === 'failed') {
+        // Second refresh: After AI generation is complete
+        console.log('AI generation completed, refreshing page...');
+        window.location.reload();
+        
+        // Wait for refresh to complete, then redirect to project detail
+        setTimeout(() => {
+          window.location.href = `/projects/${projectId}`;
+        }, 1000);
+      } else {
+        // Continue polling if still processing
+        setTimeout(() => monitorProjectStatus(projectId), 2000);
+      }
+    } catch (error) {
+      console.error('Failed to monitor project status:', error);
     }
   };
 

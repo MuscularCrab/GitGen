@@ -72,6 +72,93 @@ app.get('/api/test', (req, res) => {
   });
 });
 
+// Debug endpoint to inspect all projects in memory
+app.get('/api/debug/projects', (req, res) => {
+  console.log('Debug projects endpoint called');
+  
+  const allProjects = Array.from(projects.entries()).map(([id, project]) => ({
+    id,
+    project: {
+      id: project.id,
+      projectName: project.projectName,
+      repoUrl: project.repoUrl,
+      status: project.status,
+      hasDocumentation: !!project.documentation,
+      hasProgress: !!project.progress,
+      createdAt: project.createdAt,
+      completedAt: project.completedAt,
+      error: project.error
+    }
+  }));
+  
+  res.json({
+    totalProjects: projects.size,
+    projects: allProjects,
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Test endpoint to create a project and immediately check its state
+app.post('/api/test-create-project', async (req, res) => {
+  console.log('Test create project endpoint called');
+  try {
+    const { repoUrl, projectName, description } = req.body;
+    
+    if (!repoUrl || !projectName) {
+      return res.status(400).json({ error: 'Repository URL and project name are required' });
+    }
+
+    const projectId = uuidv4();
+    const project = {
+      id: projectId,
+      repoUrl,
+      projectName,
+      description: description || '',
+      status: 'processing',
+      createdAt: new Date().toISOString(),
+      documentation: null,
+      error: null
+    };
+    
+    // Store the project
+    projects.set(projectId, project);
+    
+    // Immediately retrieve and check the stored project
+    const storedProject = projects.get(projectId);
+    console.log('Project immediately after storage:', storedProject);
+    
+    // Check if the project is valid
+    const isValid = storedProject && 
+      storedProject.id && 
+      typeof storedProject.id === 'string' &&
+      storedProject.repoUrl && 
+      typeof storedProject.repoUrl === 'string' &&
+      storedProject.projectName && 
+      typeof storedProject.projectName === 'string';
+    
+    res.json({ 
+      projectId, 
+      status: 'created',
+      project: storedProject,
+      isValid,
+      totalProjects: projects.size,
+      validationDetails: {
+        hasProject: !!storedProject,
+        hasId: !!storedProject?.id,
+        idType: typeof storedProject?.id,
+        hasRepoUrl: !!storedProject?.repoUrl,
+        repoUrlType: typeof storedProject?.repoUrl,
+        hasProjectName: !!storedProject?.projectName,
+        projectNameType: typeof storedProject?.projectName
+      }
+    });
+    
+  } catch (error) {
+    console.error('Error in test project creation:', error);
+    res.status(500).json({ error: 'Failed to create test project' });
+  }
+});
+
 // Simple status endpoint
 app.get('/api/status', (req, res) => {
   console.log('Status endpoint called');
@@ -165,8 +252,30 @@ app.post('/api/projects', async (req, res) => {
       documentation: null,
       error: null
     };
+    
+    // Validate project structure
+    if (!project.id || !project.repoUrl || !project.projectName) {
+      console.error('Invalid project structure:', project);
+      return res.status(500).json({ error: 'Invalid project structure' });
+    }
 
     projects.set(projectId, project);
+    
+    console.log('Project created and stored:', { 
+      projectId, 
+      projectName, 
+      repoUrl, 
+      totalProjects: projects.size 
+    });
+    
+    // Verify the project was stored correctly
+    const storedProject = projects.get(projectId);
+    console.log('Verification - stored project:', { 
+      id: storedProject?.id, 
+      projectName: storedProject?.projectName, 
+      repoUrl: storedProject?.repoUrl, 
+      status: storedProject?.status 
+    });
 
     // Process repository asynchronously
     processRepository(projectId, repoUrl);
@@ -181,25 +290,56 @@ app.post('/api/projects', async (req, res) => {
 // Get project status
 app.get('/api/projects/:projectId', (req, res) => {
   const { projectId } = req.params;
+  console.log('Getting project:', projectId);
+  
   const project = projects.get(projectId);
   
   if (!project) {
+    console.log('Project not found:', projectId);
     return res.status(404).json({ error: 'Project not found' });
   }
+  
+  console.log('Returning project:', { 
+    id: project.id, 
+    projectName: project.projectName, 
+    repoUrl: project.repoUrl, 
+    status: project.status 
+  });
   
   res.json(project);
 });
 
 // Get all projects
 app.get('/api/projects', (req, res) => {
-  const projectList = Array.from(projects.values()).map(project => ({
-    id: project.id,
-    projectName: project.projectName,
-    description: project.description,
-    status: project.status,
-    createdAt: project.createdAt
-  }));
+  console.log('Getting all projects. Total projects in memory:', projects.size);
   
+  const projectList = Array.from(projects.values()).map(project => {
+    // Validate project data before returning
+    if (!project || !project.id || !project.repoUrl || !project.projectName) {
+      console.error('Invalid project data found:', project);
+      return null;
+    }
+    
+    console.log('Processing project:', { 
+      id: project.id, 
+      projectName: project.projectName, 
+      repoUrl: project.repoUrl, 
+      status: project.status 
+    });
+    
+    return {
+      id: project.id,
+      projectName: project.projectName,
+      repoUrl: project.repoUrl,
+      description: project.description || '',
+      status: project.status || 'unknown',
+      createdAt: project.createdAt || new Date().toISOString(),
+      completedAt: project.completedAt || null,
+      documentation: project.documentation || null
+    };
+  }).filter(Boolean); // Remove any null entries
+  
+  console.log('Returning projects:', projectList);
   res.json(projectList);
 });
 
@@ -283,9 +423,24 @@ app.get('/api/ai-config', (req, res) => {
 // Process repository and generate documentation
 async function processRepository(projectId, repoUrl) {
   const project = projects.get(projectId);
-  if (!project) return;
+  if (!project) {
+    console.error(`Project ${projectId} not found when starting processing`);
+    return;
+  }
 
   console.log(`Starting to process repository: ${repoUrl} for project: ${projectId}`);
+  console.log('Project data at start:', { 
+    id: project.id, 
+    projectName: project.projectName, 
+    repoUrl: project.repoUrl, 
+    status: project.status 
+  });
+
+  // Verify project data integrity before processing
+  if (!project.id || !project.repoUrl || !project.projectName) {
+    console.error('Project data corrupted before processing:', project);
+    return;
+  }
 
   try {
     // Initialize progress tracking
@@ -352,17 +507,31 @@ async function processRepository(projectId, repoUrl) {
     project.progress.step = 6;
     project.progress.message = 'Finalizing documentation...';
     
+    // Verify project data integrity before updating
+    const currentProject = projects.get(projectId);
+    if (!currentProject || !currentProject.id || !currentProject.repoUrl || !currentProject.projectName) {
+      console.error('Project data corrupted during processing:', currentProject);
+      return;
+    }
+    
     // Update project
-    project.status = 'completed';
-    project.documentation = documentation;
-    project.completedAt = new Date().toISOString();
+    currentProject.status = 'completed';
+    currentProject.documentation = documentation;
+    currentProject.completedAt = new Date().toISOString();
     
     // Calculate total time and update progress
-    const totalTime = Date.now() - project.progress.startTime;
-    project.progress.estimatedTime = Math.round(totalTime / 1000);
-    project.progress.message = 'Documentation generation completed!';
+    const totalTime = Date.now() - currentProject.progress.startTime;
+    currentProject.progress.estimatedTime = Math.round(totalTime / 1000);
+    currentProject.progress.message = 'Documentation generation completed!';
     
-    console.log(`Project ${projectId} completed successfully in ${project.progress.estimatedTime}s`);
+    console.log(`Project ${projectId} completed successfully in ${currentProject.progress.estimatedTime}s`);
+    console.log('Final project data:', {
+      id: currentProject.id,
+      projectName: currentProject.projectName,
+      repoUrl: currentProject.repoUrl,
+      status: currentProject.status,
+      hasDocumentation: !!currentProject.documentation
+    });
     
     // Cleanup
     console.log(`Cleaning up temp directory: ${tempDir}`);
@@ -370,14 +539,30 @@ async function processRepository(projectId, repoUrl) {
     
   } catch (error) {
     console.error(`Error processing repository for project ${projectId}:`, error);
-    project.status = 'failed';
-    project.error = error.message;
-    project.progress = {
-      ...project.progress,
-      currentStep: 'failed',
-      message: `Failed: ${error.message}`
-    };
-    console.log(`Project ${projectId} failed with error: ${error.message}`);
+    
+    // Get the current project state
+    const currentProject = projects.get(projectId);
+    if (currentProject) {
+      currentProject.status = 'failed';
+      currentProject.error = error.message;
+      if (currentProject.progress) {
+        currentProject.progress = {
+          ...currentProject.progress,
+          currentStep: 'failed',
+          message: `Failed: ${error.message}`
+        };
+      }
+      console.log(`Project ${projectId} failed with error: ${error.message}`);
+      console.log('Failed project data:', {
+        id: currentProject.id,
+        projectName: currentProject.projectName,
+        repoUrl: currentProject.repoUrl,
+        status: currentProject.status,
+        error: currentProject.error
+      });
+    } else {
+      console.error(`Project ${projectId} not found after error occurred`);
+    }
   }
 }
 

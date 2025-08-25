@@ -20,16 +20,32 @@ const projectReducer = (state, action) => {
     case 'SET_PROJECTS':
       // Validate and filter projects to ensure they have required fields
       const validProjects = Array.isArray(action.payload) 
-        ? action.payload.filter(project => 
-            project && 
-            project.id && 
-            typeof project.id === 'string' &&
-            project.repoUrl && 
-            typeof project.repoUrl === 'string'
-          )
+        ? action.payload.filter(project => {
+            const isValid = project && 
+              project.id && 
+              typeof project.id === 'string' &&
+              project.repoUrl && 
+              typeof project.repoUrl === 'string';
+            
+            if (!isValid) {
+              console.error('Invalid project data found:', project);
+              console.error('Project validation failed:', {
+                hasProject: !!project,
+                hasId: !!project?.id,
+                idType: typeof project?.id,
+                hasRepoUrl: !!project?.repoUrl,
+                repoUrlType: typeof project?.repoUrl
+              });
+            }
+            
+            return isValid;
+          })
         : [];
       
       console.log('Filtered projects:', validProjects);
+      console.log('Total projects received:', action.payload?.length || 0);
+      console.log('Valid projects after filtering:', validProjects.length);
+      
       return { ...state, projects: validProjects };
     case 'ADD_PROJECT':
       return { ...state, projects: [action.payload, ...state.projects] };
@@ -116,13 +132,22 @@ export const ProjectProvider = ({ children }) => {
       
       clearTimeout(timeoutId);
       console.log('Projects loaded:', response.data);
+      console.log('Response status:', response.status);
+      console.log('Response headers:', response.headers);
       
       // Ensure we have valid data
       const projectsData = response.data;
       if (!projectsData || !Array.isArray(projectsData)) {
         console.warn('Invalid projects data received:', projectsData);
+        console.warn('Data type:', typeof projectsData);
+        console.warn('Is array:', Array.isArray(projectsData));
         dispatch({ type: 'SET_PROJECTS', payload: [] });
       } else {
+        console.log('Projects data structure:', {
+          length: projectsData.length,
+          sampleProject: projectsData[0],
+          allProjects: projectsData
+        });
         dispatch({ type: 'SET_PROJECTS', payload: projectsData });
       }
     } catch (error) {

@@ -222,65 +222,54 @@
     background-color: var(--bg-primary);
   }
   
-  /* Ensure the main app container uses theme colors */
-  .App {
-    background-color: var(--bg-primary);
-    min-height: 100vh;
-  }
-  
-  /* Force dark backgrounds on all containers */
-  [data-theme="dark"] * {
-    background-color: var(--bg-primary) !important;
-  }
-  
   /* Specific dark mode overrides for common elements */
   [data-theme="dark"] .card {
-    background-color: var(--bg-card) !important;
+    background-color: var(--bg-card);
   }
   
   [data-theme="dark"] .bg-gray-100 {
-    background-color: var(--bg-secondary) !important;
+    background-color: var(--bg-secondary);
   }
   
   [data-theme="dark"] .bg-gray-50 {
-    background-color: var(--bg-secondary) !important;
+    background-color: var(--bg-secondary);
   }
   
   [data-theme="dark"] .bg-red-50 {
-    background-color: #1f2937 !important;
+    background-color: #1f2937;
   }
   
   [data-theme="dark"] .bg-red-100 {
-    background-color: #374151 !important;
+    background-color: #374151;
   }
   
   /* Additional dark mode overrides */
   [data-theme="dark"] .bg-white {
-    background-color: var(--bg-card) !important;
+    background-color: var(--bg-card);
   }
   
   [data-theme="dark"] .bg-primary-100 {
-    background-color: var(--bg-secondary) !important;
+    background-color: var(--bg-secondary);
   }
   
   [data-theme="dark"] .text-gray-900 {
-    color: var(--text-primary) !important;
+    color: var(--text-primary);
   }
   
   [data-theme="dark"] .text-gray-600 {
-    color: var(--text-secondary) !important;
+    color: var(--text-secondary);
   }
   
   [data-theme="dark"] .text-gray-500 {
-    color: var(--text-muted) !important;
+    color: var(--text-muted);
   }
   
   [data-theme="dark"] .text-gray-700 {
-    color: var(--text-secondary) !important;
+    color: var(--text-secondary);
   }
   
   [data-theme="dark"] .border-gray-200 {
-    border-color: var(--border-color) !important;
+    border-color: var(--border-color);
   }
 }
 
@@ -298,7 +287,7 @@
   .btn-secondary {
     @apply font-medium py-2 px-4 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2;
     background-color: var(--bg-card);
-    color: var(--text-secondary);
+    color: var(--text-primary);
     border: 1px solid var(--border-color);
   }
   
@@ -361,6 +350,41 @@
   [data-theme="dark"] .badge-info {
     @apply bg-blue-900 text-blue-200;
   }
+  
+  /* Additional dark mode improvements */
+  [data-theme="dark"] .bg-gradient-to-r {
+    background: linear-gradient(to right, var(--bg-secondary), var(--bg-card));
+  }
+  
+  [data-theme="dark"] .from-purple-50 {
+    --tw-gradient-from: var(--bg-secondary);
+  }
+  
+  [data-theme="dark"] .to-blue-50 {
+    --tw-gradient-to: var(--bg-card);
+  }
+  
+  [data-theme="dark"] .border-purple-200 {
+    border-color: var(--border-color);
+  }
+  
+  [data-theme="dark"] .text-purple-800 {
+    color: var(--text-primary);
+  }
+  
+  [data-theme="dark"] .text-purple-700 {
+    color: var(--text-secondary);
+  }
+  
+  /* Improve form elements in dark mode */
+  [data-theme="dark"] .input-field::placeholder {
+    color: var(--text-muted);
+  }
+  
+  [data-theme="dark"] .input-field:focus {
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 3px rgba(236, 72, 153, 0.1);
+  }
 }
 
 /* Theme Toggle Switch - From Uiverse.io by alexruix */
@@ -379,7 +403,7 @@
 }
 
 .slider {
-  --background: #28096b;
+  --background: #4f46e5;
   position: absolute;
   cursor: pointer;
   top: 0;
@@ -387,8 +411,9 @@
   right: 0;
   bottom: 0;
   background-color: var(--background);
-  transition: .5s;
+  transition: 0.5s;
   border-radius: 30px;
+  border: 2px solid #4f46e5;
 }
 
 .slider:before {
@@ -397,19 +422,188 @@
   height: 1.4em;
   width: 1.4em;
   border-radius: 50%;
-  left: 10%;
-  bottom: 15%;
-  box-shadow: inset 8px -4px 0px 0px #fff000;
-  background: var(--background);
-  transition: .5s;
+  left: 0.27em;
+  bottom: 0.25em;
+  background-color: #ffffff;
+  transition: 0.5s;
 }
 
 input:checked + .slider {
-  background-color: #522ba7;
+  background-color: #ec4899;
+  border-color: #ec4899;
 }
 
 input:checked + .slider:before {
-  transform: translateX(100%);
-  box-shadow: inset 15px -4px 0px 15px #fff000;
+  transform: translateX(1.4em);
+}
+
+/* Dark mode theme toggle improvements */
+[data-theme="dark"] .switch {
+  filter: drop-shadow(0 0 8px rgba(236, 72, 153, 0.3));
+}
+
+[data-theme="dark"] .slider {
+  border-color: #ec4899;
+  box-shadow: 0 0 10px rgba(236, 72, 153, 0.2);
+}
+
+/* Light mode theme toggle improvements */
+[data-theme="light"] .switch {
+  filter: drop-shadow(0 0 4px rgba(79, 70, 229, 0.2));
+}
+
+[data-theme="light"] .slider {
+  border-color: #4f46e5;
+  box-shadow: 0 0 6px rgba(79, 70, 229, 0.1);
+}
+
+/* Hover effects for theme toggle */
+.switch:hover .slider {
+  transform: scale(1.05);
+  transition: transform 0.2s ease;
+}
+
+/* Ensure theme toggle icons are visible in both modes */
+[data-theme="dark"] .text-gray-400 {
+  color: var(--text-muted);
+}
+
+[data-theme="light"] .text-gray-400 {
+  color: #9ca3af;
+}
+
+/* Remove the aggressive background overrides that were causing highlighting issues */
+[data-theme="dark"] * {
+  /* Remove the problematic !important background override */
+}
+
+/* Ensure proper text contrast in dark mode */
+[data-theme="dark"] .text-gray-400 {
+  color: var(--text-muted);
+}
+
+[data-theme="dark"] .text-gray-300 {
+  color: var(--text-secondary);
+}
+
+/* Fix any remaining highlighting issues */
+[data-theme="dark"] ::selection {
+  background-color: var(--accent-color);
+  color: white;
+}
+
+[data-theme="dark"] ::-moz-selection {
+  background-color: var(--accent-color);
+  color: white;
+}
+
+/* Additional dark mode improvements for better text readability */
+[data-theme="dark"] .text-gray-800 {
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .text-gray-400 {
+  color: var(--text-muted);
+}
+
+[data-theme="dark"] .text-gray-300 {
+  color: var(--text-secondary);
+}
+
+/* Improve button and form styling in dark mode */
+[data-theme="dark"] .btn-secondary {
+  background-color: var(--bg-card);
+  color: var(--text-primary);
+  border-color: var(--border-color);
+}
+
+[data-theme="dark"] .btn-secondary:hover {
+  background-color: var(--bg-secondary);
+}
+
+/* Ensure proper contrast for interactive elements */
+[data-theme="dark"] .hover\:bg-gray-100:hover {
+  background-color: var(--bg-secondary);
+}
+
+[data-theme="dark"] .hover\:text-primary-600:hover {
+  color: var(--accent-color);
+}
+
+/* Consolidated dark mode improvements */
+[data-theme="dark"] .bg-gray-100 {
+  background-color: var(--bg-secondary);
+}
+
+
+
+/* Ensure proper button visibility in dark mode */
+[data-theme="dark"] .btn-primary {
+  background-color: var(--accent-color);
+  color: white;
+  border: none;
+}
+
+[data-theme="dark"] .btn-primary:hover {
+  background-color: var(--accent-hover);
+}
+
+
+
+/* Ensure proper link visibility in dark mode */
+[data-theme="dark"] a {
+  color: var(--accent-color);
+}
+
+[data-theme="dark"] a:hover {
+  color: var(--accent-hover);
+}
+
+/* Projects page debug section improvements */
+[data-theme="dark"] .bg-gray-100 {
+  background-color: var(--bg-secondary);
+}
+
+/* Ensure proper contrast for all text elements */
+[data-theme="dark"] .text-gray-900,
+[data-theme="dark"] .text-gray-800 {
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .text-gray-700,
+[data-theme="dark"] .text-gray-600,
+[data-theme="dark"] .text-gray-300 {
+  color: var(--text-secondary);
+}
+
+[data-theme="dark"] .text-gray-500,
+[data-theme="dark"] .text-gray-400 {
+  color: var(--text-muted);
+}
+
+/* Improve form and input styling */
+[data-theme="dark"] .input-field::placeholder {
+  color: var(--text-muted);
+}
+
+[data-theme="dark"] .input-field:focus {
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 3px rgba(236, 72, 153, 0.1);
+}
+
+/* Ensure proper border colors */
+[data-theme="dark"] .border-gray-200 {
+  border-color: var(--border-color);
+}
+
+[data-theme="dark"] .border-gray-300 {
+  border-color: var(--border-color);
+}
+
+
+
+[data-theme="dark"] .bg-white,
+[data-theme="dark"] .bg-gray-50 {
+  background-color: var(--bg-secondary);
 }
 
