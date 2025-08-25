@@ -18,7 +18,19 @@ const projectReducer = (state, action) => {
     case 'SET_ERROR':
       return { ...state, error: action.payload };
     case 'SET_PROJECTS':
-      return { ...state, projects: action.payload };
+      // Validate and filter projects to ensure they have required fields
+      const validProjects = Array.isArray(action.payload) 
+        ? action.payload.filter(project => 
+            project && 
+            project.id && 
+            typeof project.id === 'string' &&
+            project.repoUrl && 
+            typeof project.repoUrl === 'string'
+          )
+        : [];
+      
+      console.log('Filtered projects:', validProjects);
+      return { ...state, projects: validProjects };
     case 'ADD_PROJECT':
       return { ...state, projects: [action.payload, ...state.projects] };
     case 'UPDATE_PROJECT':
@@ -104,7 +116,15 @@ export const ProjectProvider = ({ children }) => {
       
       clearTimeout(timeoutId);
       console.log('Projects loaded:', response.data);
-      dispatch({ type: 'SET_PROJECTS', payload: response.data || [] });
+      
+      // Ensure we have valid data
+      const projectsData = response.data;
+      if (!projectsData || !Array.isArray(projectsData)) {
+        console.warn('Invalid projects data received:', projectsData);
+        dispatch({ type: 'SET_PROJECTS', payload: [] });
+      } else {
+        dispatch({ type: 'SET_PROJECTS', payload: projectsData });
+      }
     } catch (error) {
       console.error('Error loading projects:', error);
       if (error.name === 'AbortError') {

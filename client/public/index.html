@@ -11,6 +11,22 @@
     />
     <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
     <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
+    <!-- Dark mode script - apply immediately -->
+    <script>
+      // Apply dark mode immediately to prevent flash
+      if (!localStorage.getItem('theme') || localStorage.getItem('theme') !== 'light') {
+        document.documentElement.setAttribute('data-theme', 'dark');
+        localStorage.setItem('theme', 'dark');
+      }
+      
+      // Also apply to body to ensure immediate effect
+      document.addEventListener('DOMContentLoaded', function() {
+        if (document.documentElement.getAttribute('data-theme') === 'dark') {
+          document.body.style.backgroundColor = '#0f172a';
+          document.body.style.color = '#f8fafc';
+        }
+      });
+    </script>
     <title>GitGen</title>
   </head>
   <body>
