@@ -22,11 +22,12 @@ const apiKey = process.env.GEMINI_API_KEY;
 if (apiKey) {
   geminiAI = new GoogleGenerativeAI(apiKey);
   AI_CONFIG = {
-    model: process.env.GEMINI_MODEL || 'gemini-pro',
+    model: process.env.GEMINI_MODEL || 'gemini-1.5-flash',
     temperature: parseFloat(process.env.GEMINI_TEMPERATURE) || 0.7,
     maxTokens: parseInt(process.env.GEMINI_MAX_TOKENS) || 4000
   };
   console.log('✅ Gemini AI initialized successfully');
+  console.log(`   Using model: ${AI_CONFIG.model}`);
 } else {
   console.log('⚠️  No Gemini API key found. AI generation will be disabled.');
   console.log('   Add GEMINI_API_KEY to your .env file to enable AI generation.');
@@ -649,7 +650,7 @@ async function generateNewReadme(repoPath, documentation) {
     }
 
     // Generate README content
-    const readmeContent = generateReadmeContent(documentation, packageInfo, mainFile);
+    const readmeContent = await generateReadmeContent(documentation, packageInfo, mainFile);
     
     console.log('README generation completed');
     return {
@@ -1073,6 +1074,8 @@ async function generateAIReadme(documentation, packageInfo, mainFile) {
     const prompt = buildAIPrompt(documentation, packageInfo, mainFile);
     
     console.log('🤖 Sending prompt to Gemini AI...');
+    console.log(`   Model: ${AI_CONFIG.model}`);
+    
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const aiGeneratedReadme = response.text();
@@ -1086,6 +1089,13 @@ async function generateAIReadme(documentation, packageInfo, mainFile) {
     
   } catch (error) {
     console.error('❌ AI generation error:', error);
+    
+    // Handle specific Gemini API errors
+    if (error.message.includes('404 Not Found') || error.message.includes('models/')) {
+      console.error('   This model may not be available. Try updating GEMINI_MODEL in your .env file.');
+      console.error('   Available models: gemini-1.5-flash, gemini-1.5-pro, gemini-pro');
+    }
+    
     throw error;
   }
 }

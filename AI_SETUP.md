@@ -27,7 +27,7 @@ Create a `.env` file in your project root:
 GEMINI_API_KEY=your_actual_api_key_here
 
 # Optional AI Settings
-GEMINI_MODEL=gemini-pro
+GEMINI_MODEL=gemini-1.5-flash
 GEMINI_TEMPERATURE=0.7
 GEMINI_MAX_TOKENS=4000
 
