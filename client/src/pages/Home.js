@@ -345,29 +345,29 @@ const Home = () => {
             </p>
           </div>
 
-                     <div className="text-center">
-             <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl font-bold text-primary-600">
-               2
-             </div>
-             <h3 className="text-lg font-semibold text-gray-900 mb-2">
-               Code Analysis
-             </h3>
-             <p className="text-gray-600">
-               Our system analyzes your code structure, functions, and dependencies
-             </p>
-           </div>
+          <div className="text-center">
+            <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl font-bold text-primary-600">
+              2
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              Code Analysis
+            </h3>
+            <p className="text-gray-600">
+              Our system analyzes your code structure, functions, and dependencies
+            </p>
+          </div>
 
-                     <div className="text-center">
-             <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl font-bold text-primary-600">
-               3
-             </div>
-             <h3 className="text-lg font-semibold text-gray-900 mb-2">
-               New README Generated
-             </h3>
-             <p className="text-gray-600">
-               Get a professional README file ready to use in your repository
-             </p>
-           </div>
+          <div className="text-center">
+            <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl font-bold text-primary-600">
+              3
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              New README Generated
+            </h3>
+            <p className="text-gray-600">
+              Get a professional README file ready to use in your repository
+            </p>
+          </div>
         </div>
       </section>
     </div>
