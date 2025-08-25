@@ -298,3 +298,6 @@ export const useProjects = () => {
   }
   return context;
 };
+
+export { ProjectContext };
+export default useProjectContext;
