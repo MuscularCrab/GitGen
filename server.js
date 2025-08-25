@@ -10,30 +10,26 @@ const multer = require('multer');
 const axios = require('axios');
 const cheerio = require('cheerio');
 
-// Conditional AI loading - only load if package is available
+// AI loading - packages are pre-installed in Docker image
 let geminiAI = null;
 let AI_CONFIG = null;
 
-try {
-  // Try to load Gemini AI package (optional dependency)
-  const { GoogleGenerativeAI } = require('@google/generative-ai');
-  require('dotenv').config();
-  
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (apiKey) {
-    geminiAI = new GoogleGenerativeAI(apiKey);
-    AI_CONFIG = {
-      model: process.env.GEMINI_MODEL || 'gemini-pro',
-      temperature: parseFloat(process.env.GEMINI_TEMPERATURE) || 0.7,
-      maxTokens: parseInt(process.env.GEMINI_MAX_TOKENS) || 4000
-    };
-    console.log('✅ Gemini AI initialized successfully');
-  } else {
-    console.log('⚠️  No Gemini API key found. AI generation will be disabled.');
-  }
-} catch (error) {
-  console.log('ℹ️  Gemini AI package not installed. Using template-based generation.');
-  console.log('   To enable AI: npm install @google/generative-ai dotenv');
+// Load Gemini AI package (always available in Docker)
+const { GoogleGenerativeAI } = require('@google/generative-ai');
+require('dotenv').config();
+
+const apiKey = process.env.GEMINI_API_KEY;
+if (apiKey) {
+  geminiAI = new GoogleGenerativeAI(apiKey);
+  AI_CONFIG = {
+    model: process.env.GEMINI_MODEL || 'gemini-pro',
+    temperature: parseFloat(process.env.GEMINI_TEMPERATURE) || 0.7,
+    maxTokens: parseInt(process.env.GEMINI_MAX_TOKENS) || 4000
+  };
+  console.log('✅ Gemini AI initialized successfully');
+} else {
+  console.log('⚠️  No Gemini API key found. AI generation will be disabled.');
+  console.log('   Add GEMINI_API_KEY to your .env file to enable AI generation.');
 }
 
 const app = express();
@@ -235,9 +231,9 @@ app.get('/api/ai-config', (req, res) => {
       temperature: AI_CONFIG?.temperature || 'N/A',
       maxTokens: AI_CONFIG?.maxTokens || 'N/A',
       hasApiKey: !!process.env.GEMINI_API_KEY,
-      packageInstalled: !!geminiAI
+      packageInstalled: true // Always true in Docker image
     };
-    
+
     res.json(config);
   } catch (error) {
     console.error('Error getting AI config:', error);
@@ -672,23 +668,23 @@ async function generateNewReadme(repoPath, documentation) {
 async function generateReadmeContent(documentation, packageInfo, mainFile) {
   const projectName = packageInfo?.name || 'Project';
   
-  // Try AI generation first, fallback to template-based generation
-  if (geminiAI) {
-    try {
-      console.log('🤖 Using AI to generate README...');
-      const aiReadme = await generateAIReadme(documentation, packageInfo, mainFile);
-      if (aiReadme) {
-        console.log('✅ AI README generation successful');
-        return aiReadme;
-      }
-    } catch (error) {
-      console.error('❌ AI generation failed, falling back to template:', error.message);
-    }
-  }
-  
-  // Fallback to template-based generation
-  console.log('📝 Using template-based README generation...');
-  return generateTemplateReadme(documentation, packageInfo, mainFile);
+             // Try AI generation first, fallback to template-based generation
+           if (geminiAI) {
+             try {
+               console.log('🤖 Using AI to generate README...');
+               const aiReadme = await generateAIReadme(documentation, packageInfo, mainFile);
+               if (aiReadme) {
+                 console.log('✅ AI README generation successful');
+                 return aiReadme;
+               }
+             } catch (error) {
+               console.error('❌ AI generation failed, falling back to template:', error.message);
+             }
+           }
+
+           // Fallback to template-based generation (when no API key or AI fails)
+           console.log('📝 Using template-based README generation...');
+           return generateTemplateReadme(documentation, packageInfo, mainFile);
 }
 
 // Generate intelligent description based on code analysis

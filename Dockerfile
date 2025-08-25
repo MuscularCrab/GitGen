@@ -20,6 +20,9 @@ COPY client/package*.json ./client/
 RUN npm install
 RUN cd client && npm install
 
+# Install AI dependencies for Gemini integration
+RUN npm install @google/generative-ai dotenv
+
 # Copy source code
 COPY . .
 
