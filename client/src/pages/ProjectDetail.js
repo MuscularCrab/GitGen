@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useProjects } from '../context/ProjectContext';
 import MarkdownRenderer from '../components/MarkdownRenderer';
@@ -22,12 +22,57 @@ const ProjectDetail = () => {
   const { currentProject, loading, error, loadProject } = useProjects();
   const [activeTab, setActiveTab] = useState('overview');
   const [expandedFiles, setExpandedFiles] = useState(new Set());
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   useEffect(() => {
     if (projectId) {
       loadProject(projectId);
     }
   }, [projectId, loadProject]);
+
+  // Auto-refresh project status when processing
+  useEffect(() => {
+    let refreshInterval;
+    
+    if (currentProject?.status === 'processing') {
+      // Refresh every 3 seconds while processing
+      refreshInterval = setInterval(() => {
+        console.log('Auto-refreshing project status...');
+        loadProject(projectId);
+      }, 3000);
+    }
+    
+    return () => {
+      if (refreshInterval) {
+        clearInterval(refreshInterval);
+      }
+    };
+  }, [currentProject?.status, projectId, loadProject]);
+
+  // Show completion notification
+  useEffect(() => {
+    if (currentProject?.status === 'completed') {
+      // Show a brief notification that processing is complete
+      const notification = document.createElement('div');
+      notification.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50';
+      notification.innerHTML = `
+        <div class="flex items-center space-x-2">
+          <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+          </svg>
+          <span>Documentation generation completed!</span>
+        </div>
+      `;
+      document.body.appendChild(notification);
+      
+      // Remove notification after 5 seconds
+      setTimeout(() => {
+        if (notification.parentNode) {
+          notification.parentNode.removeChild(notification);
+        }
+      }, 5000);
+    }
+  }, [currentProject?.status]);
 
   const toggleFileExpansion = (filePath) => {
     const newExpanded = new Set(expandedFiles);
@@ -229,6 +274,81 @@ const ProjectDetail = () => {
           )}
         </div>
       </div>
+
+      {/* Progress Bar for Processing Status */}
+      {currentProject.status === 'processing' && (
+        <div className="card">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">Processing Progress</h3>
+            <div className="flex items-center space-x-2 text-sm text-gray-600">
+              <Clock className="w-4 h-4 animate-pulse" />
+              <span>Processing...</span>
+            </div>
+          </div>
+          
+          {/* Progress Bar */}
+          <div className="w-full bg-gray-200 rounded-full h-3 mb-3 relative overflow-hidden">
+            <div 
+              className="bg-blue-600 h-3 rounded-full transition-all duration-1000 ease-out animate-pulse"
+              style={{ width: '100%' }}
+            ></div>
+            {/* Animated progress indicator */}
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-30 animate-pulse"></div>
+          </div>
+          
+          {/* Progress Stages */}
+          <div className="grid grid-cols-5 gap-2 text-xs text-gray-600">
+            <div className="text-center">
+              <div className="w-3 h-3 bg-blue-600 rounded-full mx-auto mb-1"></div>
+              <span>Clone</span>
+            </div>
+            <div className="text-center">
+              <div className="w-3 h-3 bg-blue-600 rounded-full mx-auto mb-1"></div>
+              <span>Analyze</span>
+            </div>
+            <div className="text-center">
+              <div className="w-3 h-3 bg-blue-600 rounded-full mx-auto mb-1"></div>
+              <span>Scan</span>
+            </div>
+            <div className="text-center">
+              <div className="w-3 h-3 bg-blue-600 rounded-full mx-auto mb-1"></div>
+              <span>Process</span>
+            </div>
+            <div className="text-center">
+              <div className="w-3 h-3 bg-gray-300 rounded-full mx-auto mb-1"></div>
+              <span>Complete</span>
+            </div>
+          </div>
+          
+          <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <p className="text-sm text-blue-800">
+              <strong>Processing:</strong> Repository is being analyzed and documentation is being generated. 
+              This may take a few minutes depending on the repository size.
+            </p>
+            <div className="mt-3 flex justify-between items-center">
+              <span className="text-xs text-blue-700">
+                Auto-refreshing every 3 seconds...
+              </span>
+              <button
+                onClick={async () => {
+                  console.log('Manual refresh requested');
+                  setIsRefreshing(true);
+                  try {
+                    await loadProject(projectId);
+                  } finally {
+                    setIsRefreshing(false);
+                  }
+                }}
+                disabled={isRefreshing}
+                className="btn-secondary text-xs px-3 py-1 disabled:opacity-50"
+              >
+                <Clock className={`w-3 h-3 mr-1 inline ${isRefreshing ? 'animate-spin' : ''}`} />
+                {isRefreshing ? 'Refreshing...' : 'Refresh Now'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="border-b border-gray-200">
