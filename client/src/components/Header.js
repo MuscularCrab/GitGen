@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { BookOpen, GitBranch, Menu, X, TestTube } from 'lucide-react';
+import { BookOpen, GitBranch, Menu, X, TestTube, FileText } from 'lucide-react';
 import { useState } from 'react';
 
 const Header = () => {
