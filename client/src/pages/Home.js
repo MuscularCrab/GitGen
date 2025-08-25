@@ -46,15 +46,22 @@ const Home = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!formData.repoUrl || !formData.projectName) {
-      alert('Please fill in all required fields');
+    if (!formData.repoUrl) {
+      alert('Please fill in the Repository URL');
       return;
     }
 
     try {
+      // Extract project name from repository URL if not provided
+      let projectName = formData.projectName;
+      if (!projectName) {
+        const urlParts = formData.repoUrl.split('/');
+        projectName = urlParts[urlParts.length - 1]?.replace('.git', '') || 'Project';
+      }
+
       const project = await createProject({
         repoUrl: formData.repoUrl,
-        projectName: formData.projectName,
+        projectName: projectName,
         description: formData.description,
         mode: formData.mode
       });
@@ -129,7 +136,7 @@ const Home = () => {
               {/* Project Name */}
               <div>
                 <label htmlFor="projectName" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Project Name *
+                  Project Name
                 </label>
                 <input
                   type="text"
@@ -139,14 +146,16 @@ const Home = () => {
                   onChange={handleInputChange}
                   placeholder="My Awesome Project"
                   className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                  required
                 />
+                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                  Optional - will be extracted from repository if not provided
+                </p>
               </div>
 
               {/* Description */}
               <div>
                 <label htmlFor="description" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Description (Optional)
+                  Description
                 </label>
                 <textarea
                   id="description"
@@ -157,6 +166,9 @@ const Home = () => {
                   rows="3"
                   className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                 />
+                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                  Optional - AI will generate description from code analysis
+                </p>
               </div>
 
               {/* README Generation Mode Selection */}
