@@ -63,42 +63,42 @@ const Home = () => {
       const projectId = await createProject(projectData);
       console.log('Project created successfully with ID:', projectId);
       
-      // First refresh: After repository clone is complete
-      console.log('Repository clone completed, refreshing page...');
-      window.location.reload();
+      // Show success message and disable form
+      setFormData(prev => ({ ...prev, submitted: true }));
       
-      // Wait a moment for the refresh to complete, then start monitoring for AI completion
+      // Wait a moment to show success, then start monitoring
       setTimeout(() => {
         // Start monitoring project status for AI generation completion
         monitorProjectStatus(projectId);
-      }, 1000);
+      }, 2000);
       
     } catch (error) {
       console.error('Failed to create project:', error);
+      // Re-enable form on error
+      setFormData(prev => ({ ...prev, submitted: false }));
     }
   };
 
-  // Function to monitor project status and refresh when AI generation completes
+  // Function to monitor project status and redirect when AI generation completes
   const monitorProjectStatus = async (projectId) => {
     try {
       const response = await fetch(`/api/projects/${projectId}`);
       const project = await response.json();
       
       if (project.status === 'completed' || project.status === 'failed') {
-        // Second refresh: After AI generation is complete
-        console.log('AI generation completed, refreshing page...');
-        window.location.reload();
-        
-        // Wait for refresh to complete, then redirect to project detail
-        setTimeout(() => {
-          window.location.href = `/projects/${projectId}`;
-        }, 1000);
+        // AI generation completed, redirect to project detail
+        console.log('AI generation completed, redirecting to project...');
+        window.location.href = `/projects/${projectId}`;
       } else {
         // Continue polling if still processing
         setTimeout(() => monitorProjectStatus(projectId), 2000);
       }
     } catch (error) {
       console.error('Failed to monitor project status:', error);
+      // On error, redirect anyway after a delay
+      setTimeout(() => {
+        window.location.href = `/projects/${projectId}`;
+      }, 5000);
     }
   };
 
@@ -209,22 +209,49 @@ const Home = () => {
                   placeholder="https://github.com/username/repository"
                   className="input-field"
                   required
+                  disabled={formData.submitted}
                 />
                 <p className="mt-1 text-sm text-gray-500">
                   Just paste the GitHub URL - we'll analyze the code and generate everything else automatically
                 </p>
               </div>
 
-              <button
-                type="submit"
-                disabled={loading}
-                className="btn-primary w-full py-3 text-lg disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <div className="flex items-center justify-center space-x-2">
-                  <BookOpen className="w-5 h-5" />
-                  <span>Generate Documentation</span>
+              {formData.submitted ? (
+                <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                  <div className="flex items-center space-x-2 text-green-800">
+                    <CheckCircle className="w-5 h-5" />
+                    <span className="font-medium">Project Created Successfully!</span>
+                  </div>
+                  <p className="text-sm text-green-700 mt-2">
+                    We're now analyzing your repository and generating comprehensive documentation. 
+                    This may take a few minutes. You'll be redirected to your project when it's complete.
+                  </p>
+                  <div className="mt-3">
+                    <Loader size="small" />
+                    <span className="text-sm text-green-600 ml-2">Processing...</span>
+                  </div>
                 </div>
-              </button>
+              ) : (
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="btn-primary w-full py-3 text-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <div className="flex items-center justify-center space-x-2">
+                    {loading ? (
+                      <>
+                        <Loader size="small" />
+                        <span>Creating Project...</span>
+                      </>
+                    ) : (
+                      <>
+                        <BookOpen className="w-5 h-5" />
+                        <span>Generate Documentation</span>
+                      </>
+                    )}
+                  </div>
+                </button>
+              )}
             </form>
           </div>
 

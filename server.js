@@ -1085,39 +1085,58 @@ function detectProjectFeatures(documentation) {
   let hasTypeScript = false;
   let hasPython = false;
   let hasJava = false;
+  let hasGraphQL = false;
+  let hasWebSocket = false;
+  let hasAuthentication = false;
+  let hasCaching = false;
+  let hasMonitoring = false;
+  let hasLogging = false;
+  let hasErrorHandling = false;
+  let hasValidation = false;
+  let hasRateLimiting = false;
+  let hasCompression = false;
+  let hasCORS = false;
+  let hasHelmet = false;
+  let hasMorgan = false;
+  let hasJest = false;
+  let hasMocha = false;
+  let hasESLint = false;
+  let hasPrettier = false;
+  let hasHusky = false;
+  let hasLintStaged = false;
   
   documentation.files.forEach(file => {
     const content = file.raw || '';
     const path = file.path.toLowerCase();
     
     // Framework detection
-    if (content.includes('express') || content.includes('app.use')) {
+    if (content.includes('express') || content.includes('app.use') || content.includes('app.listen')) {
       hasExpress = true;
     }
-    if (content.includes('react') || content.includes('jsx') || content.includes('useState')) {
+    if (content.includes('react') || content.includes('jsx') || content.includes('useState') || content.includes('useEffect')) {
       hasReact = true;
     }
-    if (content.includes('vue') || content.includes('createApp')) {
+    if (content.includes('vue') || content.includes('createApp') || content.includes('ref(') || content.includes('computed(')) {
       hasVue = true;
     }
-    if (content.includes('angular') || content.includes('@Component')) {
+    if (content.includes('angular') || content.includes('@Component') || content.includes('@Injectable')) {
       hasAngular = true;
     }
     
     // Technology detection
-    if (content.includes('database') || content.includes('mongoose') || content.includes('sequelize')) {
+    if (content.includes('database') || content.includes('mongoose') || content.includes('sequelize') || content.includes('prisma')) {
       hasDatabase = true;
     }
-    if (path.includes('test') || path.includes('spec') || content.includes('jest') || content.includes('mocha')) {
+    if (path.includes('test') || path.includes('spec') || content.includes('jest') || content.includes('mocha') || content.includes('vitest')) {
       hasTesting = true;
     }
-    if (path.includes('dockerfile') || path.includes('docker-compose')) {
+    if (path.includes('dockerfile') || path.includes('docker-compose') || content.includes('docker')) {
       hasDocker = true;
     }
-    if (path.includes('.github') || path.includes('travis') || path.includes('circle')) {
+    if (path.includes('.github') || path.includes('travis') || path.includes('circle') || content.includes('ci/cd')) {
       hasCI = true;
     }
-    if (content.includes('eslint') || content.includes('prettier')) {
+    if (content.includes('eslint') || content.includes('prettier') || content.includes('stylelint')) {
       hasLinting = true;
     }
     if (file.extension === '.ts' || file.extension === '.tsx') {
@@ -1129,21 +1148,99 @@ function detectProjectFeatures(documentation) {
     if (file.extension === '.java') {
       hasJava = true;
     }
+    
+    // Advanced feature detection
+    if (content.includes('graphql') || content.includes('gql') || content.includes('GraphQL')) {
+      hasGraphQL = true;
+    }
+    if (content.includes('websocket') || content.includes('socket.io') || content.includes('ws')) {
+      hasWebSocket = true;
+    }
+    if (content.includes('jwt') || content.includes('passport') || content.includes('auth') || content.includes('login')) {
+      hasAuthentication = true;
+    }
+    if (content.includes('redis') || content.includes('cache') || content.includes('memcached')) {
+      hasCaching = true;
+    }
+    if (content.includes('monitoring') || content.includes('metrics') || content.includes('prometheus')) {
+      hasMonitoring = true;
+    }
+    if (content.includes('winston') || content.includes('pino') || content.includes('log4js')) {
+      hasLogging = true;
+    }
+    if (content.includes('try-catch') || content.includes('error handling') || content.includes('throw new Error')) {
+      hasErrorHandling = true;
+    }
+    if (content.includes('joi') || content.includes('yup') || content.includes('zod') || content.includes('validation')) {
+      hasValidation = true;
+    }
+    if (content.includes('rate-limit') || content.includes('throttle') || content.includes('limiter')) {
+      hasRateLimiting = true;
+    }
+    if (content.includes('compression') || content.includes('gzip') || content.includes('brotli')) {
+      hasCompression = true;
+    }
+    if (content.includes('cors') || content.includes('cross-origin')) {
+      hasCORS = true;
+    }
+    if (content.includes('helmet') || content.includes('security headers')) {
+      hasHelmet = true;
+    }
+    if (content.includes('morgan') || content.includes('http logger')) {
+      hasMorgan = true;
+    }
+    if (content.includes('jest') || content.includes('@testing-library')) {
+      hasJest = true;
+    }
+    if (content.includes('mocha') || content.includes('chai') || content.includes('sinon')) {
+      hasMocha = true;
+    }
+    if (content.includes('eslint') || content.includes('eslintrc')) {
+      hasESLint = true;
+    }
+    if (content.includes('prettier') || content.includes('prettierrc')) {
+      hasPrettier = true;
+    }
+    if (content.includes('husky') || content.includes('pre-commit')) {
+      hasHusky = true;
+    }
+    if (content.includes('lint-staged') || content.includes('pre-commit hook')) {
+      hasLintStaged = true;
+    }
   });
   
-  // Add detected features
-  if (hasExpress) features.push('Express.js backend framework');
-  if (hasReact) features.push('React frontend framework');
-  if (hasVue) features.push('Vue.js frontend framework');
-  if (hasAngular) features.push('Angular frontend framework');
-  if (hasDatabase) features.push('Database integration');
-  if (hasTesting) features.push('Comprehensive testing suite');
-  if (hasDocker) features.push('Docker containerization');
-  if (hasCI) features.push('Continuous Integration/Deployment');
-  if (hasLinting) features.push('Code quality tools');
-  if (hasTypeScript) features.push('TypeScript support');
-  if (hasPython) features.push('Python backend');
-  if (hasJava) features.push('Java backend');
+  // Add detected features with descriptions
+  if (hasExpress) features.push('Express.js backend framework with middleware support');
+  if (hasReact) features.push('React frontend with modern hooks and state management');
+  if (hasVue) features.push('Vue.js progressive framework with composition API');
+  if (hasAngular) features.push('Angular enterprise framework with TypeScript');
+  if (hasDatabase) features.push('Database integration with ORM/ODM support');
+  if (hasTesting) features.push('Comprehensive testing suite with modern tools');
+  if (hasDocker) features.push('Docker containerization for easy deployment');
+  if (hasCI) features.push('Continuous Integration/Deployment pipeline');
+  if (hasLinting) features.push('Code quality tools and formatting');
+  if (hasTypeScript) features.push('TypeScript for type safety and better DX');
+  if (hasPython) features.push('Python backend with extensive libraries');
+  if (hasJava) features.push('Java enterprise-grade backend');
+  if (hasGraphQL) features.push('GraphQL API with schema-first design');
+  if (hasWebSocket) features.push('Real-time communication with WebSockets');
+  if (hasAuthentication) features.push('Secure authentication and authorization');
+  if (hasCaching) features.push('Performance optimization with caching');
+  if (hasMonitoring) features.push('Application monitoring and metrics');
+  if (hasLogging) features.push('Structured logging for debugging');
+  if (hasErrorHandling) features.push('Robust error handling and recovery');
+  if (hasValidation) features.push('Input validation and sanitization');
+  if (hasRateLimiting) features.push('API rate limiting and protection');
+  if (hasCompression) features.push('Response compression for performance');
+  if (hasCORS) features.push('Cross-origin resource sharing support');
+  if (hasHelmet) features.push('Security headers and protection');
+  if (hasMorgan) features.push('HTTP request logging middleware');
+  if (hasJest) features.push('Jest testing framework with coverage');
+  if (hasMocha) features.push('Mocha testing framework with assertions');
+  if (hasESLint) features.push('ESLint for code quality enforcement');
+  if (hasPrettier) features.push('Prettier for consistent code formatting');
+  if (hasHusky) features.push('Git hooks for pre-commit validation');
+  if (hasLintStaged) features.push('Lint-staged for efficient code checking');
   
   return features;
 }
@@ -1410,7 +1507,9 @@ function buildAIPrompt(documentation, packageInfo, mainFile) {
   // Get detected features
   const features = detectProjectFeatures(documentation);
   
-  const prompt = `You are an expert software developer and technical writer. Generate a comprehensive, professional README.md file for a software project based on the following analysis:
+  const prompt = `You are an expert software developer and technical writer specializing in creating professional, comprehensive README.md files for GitHub repositories. Your goal is to create READMEs that match the quality and comprehensiveness of top-tier open source projects.
+
+Generate a comprehensive, professional README.md file for a software project based on the following analysis:
 
 PROJECT INFORMATION:
 - Name: ${projectName}
@@ -1428,24 +1527,66 @@ TECHNICAL ANALYSIS:
 CODE SAMPLES:
 ${codeSnippets}
 
-REQUIREMENTS:
-1. Create a professional, engaging README.md that accurately reflects the project
-2. Use the actual project name and description when available
-3. Include appropriate badges for version and license
-4. Create a comprehensive table of contents
-5. Write intelligent, project-specific descriptions based on the code analysis
-6. Include installation and usage instructions appropriate for the detected technologies
-7. Highlight the actual features and technologies found in the code
-8. Add a project structure section if meaningful
-9. Include contributing guidelines and license information
-10. Make it engaging and professional, suitable for GitHub or similar platforms
-11. Use proper Markdown formatting with headers, code blocks, and lists
-12. Be specific about what the project actually does based on the code analysis
-13. Avoid generic placeholder text - make it specific to this project
+REQUIREMENTS - Create a README that is:
 
-The README should be comprehensive but not overly verbose. Focus on being helpful to developers who want to understand and use this project.
+1. **VISUALLY APPEALING**: Use emojis, badges, and proper formatting to make it engaging
+2. **COMPREHENSIVE**: Include all standard sections plus advanced ones like troubleshooting, deployment, etc.
+3. **PROFESSIONAL**: Match the quality of top GitHub repositories (React, Vue, Express, etc.)
+4. **USER-FRIENDLY**: Clear installation steps, usage examples, and configuration
+5. **DEVELOPER-FOCUSED**: Include API documentation, architecture details, and contribution guidelines
 
-Generate only the README content in Markdown format, starting with the title.`;
+MANDATORY SECTIONS TO INCLUDE:
+
+**Header & Badges:**
+- Project title with clear description
+- Multiple badges (version, license, build status, coverage, etc.)
+- Quick start section with immediate value
+
+**Core Sections:**
+- 🚀 Quick Start (get running in 2-3 commands)
+- 📋 Table of Contents (comprehensive navigation)
+- ✨ Features (detailed feature list with emojis)
+- 📦 Installation (prerequisites + step-by-step)
+- 🎯 Usage (basic + advanced examples)
+- 🔍 Code Analysis (languages, patterns, architecture)
+- 📚 API Reference (functions, endpoints, examples)
+- 🏗️ Project Structure (visual file tree)
+- 🤝 Contributing (detailed contribution guide)
+- 🧪 Testing (test commands + coverage info)
+- 🚀 Deployment (production + Docker)
+- 🔧 Troubleshooting (common issues + solutions)
+- 📄 License (clear licensing information)
+- 💬 Support (community + contact info)
+
+**Advanced Features:**
+- Configuration examples with .env files
+- Docker deployment instructions
+- CI/CD setup suggestions
+- Performance considerations
+- Security best practices
+- Browser compatibility (if applicable)
+- Mobile considerations (if applicable)
+
+**Formatting Requirements:**
+- Use emojis for section headers (🚀, 📦, 🎯, etc.)
+- Include code blocks with proper syntax highlighting
+- Use tables for structured information
+- Add badges and shields for visual appeal
+- Include proper anchor links in table of contents
+- Use bold text for important information
+- Include practical examples and use cases
+
+**Tone & Style:**
+- Professional yet approachable
+- Clear and concise language
+- Actionable instructions
+- Encouraging for contributors
+- Helpful for new users
+- Comprehensive for advanced users
+
+The README should be production-ready and immediately usable. It should make developers want to use, contribute to, and star the project. Focus on being helpful, comprehensive, and professional.
+
+Generate only the README content in Markdown format, starting with the title. Make it at least 3-4 times more comprehensive than a basic README.`;
 
   return prompt;
 }
@@ -1462,54 +1603,87 @@ function generateTemplateReadme(documentation, packageInfo, mainFile) {
   const license = packageInfo?.license || 'MIT';
   
   let readme = `# ${projectName}\n\n`;
+  
+  // Add comprehensive badges
+  readme += `![Version](https://img.shields.io/badge/version-${version}-blue.svg)\n`;
+  readme += `![License](https://img.shields.io/badge/license-${license}-green.svg)\n`;
+  readme += `![Maintenance](https://img.shields.io/badge/maintained-yes-green.svg)\n`;
+  readme += `![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)\n`;
+  readme += `![Issues](https://img.shields.io/badge/issues-welcome-brightgreen.svg)\n\n`;
+  
+  // Project description
   readme += `${description}\n\n`;
   
-  // Badges
-  readme += `![Version](https://img.shields.io/badge/version-${version}-blue.svg)\n`;
-  readme += `![License](https://img.shields.io/badge/license-${license}-green.svg)\n\n`;
-  
-  // Table of Contents
-  readme += `## Table of Contents\n\n`;
-  readme += `- [Installation](#installation)\n`;
-  readme += `- [Usage](#usage)\n`;
-  readme += `- [Features](#features)\n`;
-  readme += `- [API Reference](#api-reference)\n`;
-  readme += `- [Contributing](#contributing)\n`;
-  readme += `- [License](#license)\n\n`;
-  
-  // Installation
-  readme += `## Installation\n\n`;
+  // Quick start section
+  readme += `## 🚀 Quick Start\n\n`;
+  readme += `Get up and running in minutes:\n\n`;
   const installCommands = generateInstallCommands(packageInfo, documentation);
   installCommands.forEach(cmd => {
     readme += `\`\`\`bash\n${cmd}\n\`\`\`\n\n`;
   });
   
-  // Usage
-  readme += `## Usage\n\n`;
-  const usageCommands = generateUsageCommands(packageInfo, mainFile, documentation);
-  usageCommands.forEach(cmd => {
-    readme += `\`\`\`bash\n${cmd}\n\`\`\`\n\n`;
-  });
+  // Table of Contents
+  readme += `## 📋 Table of Contents\n\n`;
+  readme += `- [Features](#-features)\n`;
+  readme += `- [Installation](#-installation)\n`;
+  readme += `- [Usage](#-usage)\n`;
+  readme += `- [API Reference](#-api-reference)\n`;
+  readme += `- [Architecture](#-architecture)\n`;
+  readme += `- [Contributing](#-contributing)\n`;
+  readme += `- [Testing](#-testing)\n`;
+  readme += `- [Deployment](#-deployment)\n`;
+  readme += `- [Troubleshooting](#-troubleshooting)\n`;
+  readme += `- [License](#-license)\n`;
+  readme += `- [Support](#-support)\n\n`;
   
-  // Features
-  readme += `## Features\n\n`;
+  // Features section
+  readme += `## ✨ Features\n\n`;
   if (documentation.files.length > 0) {
     const languages = Object.keys(documentation.summary.languages || {});
     readme += `- **Multi-language support**: ${languages.join(', ')}\n`;
-    readme += `- **${documentation.summary.totalFiles} source files**\n`;
-    readme += `- **${documentation.summary.totalDirectories} directories**\n`;
+    readme += `- **${documentation.summary.totalFiles} source files** with comprehensive analysis\n`;
+    readme += `- **${documentation.summary.totalDirectories} organized directories**\n`;
     
     // Add intelligent feature detection
     const features = detectProjectFeatures(documentation);
     features.forEach(feature => {
-      readme += `- **${feature}\n`;
+      readme += `- **${feature}**\n`;
     });
   }
-  readme += `- Modern architecture\n`;
-  readme += `- Easy to use\n\n`;
+  readme += `- **Modern architecture** with best practices\n`;
+  readme += `- **Easy to use** with minimal configuration\n`;
+  readme += `- **Well documented** with comprehensive examples\n`;
+  readme += `- **Production ready** with error handling and logging\n\n`;
   
-  // Code Analysis
-  readme += `## Code Analysis\n\n`;
+  // Installation section
+  readme += `## 📦 Installation\n\n`;
+  readme += `### Prerequisites\n\n`;
+  readme += `- Node.js ${packageInfo?.engines?.node || '14.0.0'} or higher\n`;
+  readme += `- npm or yarn package manager\n`;
+  readme += `- Git for version control\n\n`;
+  
+  readme += `### Step-by-step Installation\n\n`;
+  installCommands.forEach((cmd, index) => {
+    readme += `${index + 1}. **${cmd.split('\n')[0]}**\n`;
+    readme += `   \`\`\`bash\n${cmd}\n   \`\`\`\n\n`;
+  });
+  
+  // Usage section
+  readme += `## 🎯 Usage\n\n`;
+  readme += `### Basic Usage\n\n`;
+  const usageCommands = generateUsageCommands(packageInfo, mainFile, documentation);
+  usageCommands.forEach((cmd, index) => {
+    readme += `${index + 1}. **${cmd.split('\n')[0]}**\n`;
+    readme += `   \`\`\`bash\n${cmd}\n   \`\`\`\n\n`;
+  });
+  
+  // Add configuration section
+  readme += `### Configuration\n\n`;
+  readme += `Create a \`.env\` file in your project root:\n\n`;
+  readme += `\`\`\`env\n# Environment variables\nNODE_ENV=development\nPORT=3000\nAPI_KEY=your_api_key_here\n\`\`\`\n\n`;
+  
+  // Code Analysis section
+  readme += `## 🔍 Code Analysis\n\n`;
   
   // Analyze the codebase
   const codeAnalysis = analyzeCodebase(documentation);
@@ -1522,17 +1696,17 @@ function generateTemplateReadme(documentation, packageInfo, mainFile) {
   }
   
   if (codeAnalysis.patterns.length > 0) {
-    readme += `### Design Patterns\n\n`;
+    readme += `### Design Patterns & Architecture\n\n`;
     codeAnalysis.patterns.forEach(pattern => {
       readme += `- **${pattern.name}**: ${pattern.description}\n`;
     });
     readme += `\n`;
   }
   
-  // API Reference
+  // API Reference section
   if (documentation.files.some(f => f.functions && f.functions.length > 0)) {
-    readme += `## API Reference\n\n`;
-    readme += `### Functions\n\n`;
+    readme += `## 📚 API Reference\n\n`;
+    readme += `### Core Functions\n\n`;
     
     const allFunctions = [];
     documentation.files.forEach(file => {
@@ -1543,19 +1717,27 @@ function generateTemplateReadme(documentation, packageInfo, mainFile) {
       }
     });
     
-    // Show first 10 functions
-    allFunctions.slice(0, 10).forEach(func => {
+    // Show first 15 functions with more detail
+    allFunctions.slice(0, 15).forEach(func => {
       readme += `- \`${func.name}\` - Defined in \`${func.file}\`\n`;
     });
     
-    if (allFunctions.length > 10) {
-      readme += `- ... and ${allFunctions.length - 10} more functions\n`;
+    if (allFunctions.length > 15) {
+      readme += `- ... and ${allFunctions.length - 15} more functions\n`;
     }
     readme += `\n`;
+    
+    readme += `### API Endpoints\n\n`;
+    readme += `| Method | Endpoint | Description |\n`;
+    readme += `|--------|-----------|-------------|\n`;
+    readme += `| GET | \`/api/health\` | Health check endpoint |\n`;
+    readme += `| GET | \`/api/projects\` | List all projects |\n`;
+    readme += `| POST | \`/api/projects\` | Create new project |\n`;
+    readme += `| GET | \`/api/projects/:id\` | Get project details |\n\n`;
   }
   
-  // Project Structure
-  readme += `## Project Structure\n\n`;
+  // Project Structure section
+  readme += `## 🏗️ Project Structure\n\n`;
   
   // Add intelligent structure description
   const structureDescription = generateStructureDescription(documentation.structure);
@@ -1580,27 +1762,79 @@ function generateTemplateReadme(documentation, packageInfo, mainFile) {
   }
   
   addStructureLines(documentation.structure);
-  readme += structureLines.slice(0, 20).join('\n');
-  if (structureLines.length > 20) {
-    readme += `\n... and ${structureLines.length - 20} more files`;
+  readme += structureLines.slice(0, 30).join('\n');
+  if (structureLines.length > 30) {
+    readme += `\n... and ${structureLines.length - 30} more files`;
   }
   readme += `\n\`\`\`\n\n`;
   
-  // Contributing
-  readme += `## Contributing\n\n`;
-  readme += `1. Fork the project\n`;
-  readme += `2. Create your feature branch (\`git checkout -b feature/AmazingFeature\`)\n`;
-  readme += `3. Commit your changes (\`git commit -m 'Add some AmazingFeature'\`)\n`;
-  readme += `4. Push to the branch (\`git push origin feature/AmazingFeature\`)\n`;
-  readme += `5. Open a Pull Request\n\n`;
+  // Contributing section
+  readme += `## 🤝 Contributing\n\n`;
+  readme += `We welcome contributions! Please read our contributing guidelines.\n\n`;
+  readme += `### How to Contribute\n\n`;
+  readme += `1. **Fork the project**\n`;
+  readme += `2. **Create your feature branch** (\`git checkout -b feature/AmazingFeature\`)\n`;
+  readme += `3. **Commit your changes** (\`git commit -m 'Add some AmazingFeature'\`)\n`;
+  readme += `4. **Push to the branch** (\`git push origin feature/AmazingFeature\`)\n`;
+  readme += `5. **Open a Pull Request**\n\n`;
   
-  // License
-  readme += `## License\n\n`;
+  readme += `### Development Setup\n\n`;
+  readme += `\`\`\`bash\n# Clone the repository\ngit clone https://github.com/username/${projectName}.git\ncd ${projectName}\n\n# Install dependencies\nnpm install\n\n# Run tests\nnpm test\n\n# Start development server\nnpm run dev\n\`\`\`\n\n`;
+  
+  // Testing section
+  readme += `## 🧪 Testing\n\n`;
+  readme += `### Running Tests\n\n`;
+  readme += `\`\`\`bash\n# Run all tests\nnpm test\n\n# Run tests in watch mode\nnpm run test:watch\n\n# Run tests with coverage\nnpm run test:coverage\n\`\`\`\n\n`;
+  
+  readme += `### Test Coverage\n\n`;
+  readme += `We maintain high test coverage to ensure code quality and reliability.\n\n`;
+  
+  // Deployment section
+  readme += `## 🚀 Deployment\n\n`;
+  readme += `### Production Build\n\n`;
+  readme += `\`\`\`bash\n# Build for production\nnpm run build\n\n# Start production server\nnpm start\n\`\`\`\n\n`;
+  
+  readme += `### Docker Deployment\n\n`;
+  readme += `\`\`\`bash\n# Build Docker image\ndocker build -t ${projectName} .\n\n# Run container\ndocker run -p 3000:3000 ${projectName}\n\`\`\`\n\n`;
+  
+  // Troubleshooting section
+  readme += `## 🔧 Troubleshooting\n\n`;
+  readme += `### Common Issues\n\n`;
+  readme += `| Issue | Solution |\n`;
+  readme += `|-------|----------|\n`;
+  readme += `| Port already in use | Change PORT in .env file |\n`;
+  readme += `| Module not found | Run \`npm install\` |\n`;
+  readme += `| Build fails | Check Node.js version compatibility |\n\n`;
+  
+  readme += `### Getting Help\n\n`;
+  readme += `- Check the [Issues](../../issues) page for known problems\n`;
+  readme += `- Create a new issue with detailed error information\n`;
+  readme += `- Join our community discussions\n\n`;
+  
+  // License section
+  readme += `## 📄 License\n\n`;
   readme += `This project is licensed under the ${license} License - see the [LICENSE](LICENSE) file for details.\n\n`;
   
+  // Support section
+  readme += `## 💬 Support\n\n`;
+  readme += `### Community\n\n`;
+  readme += `- **Discussions**: [GitHub Discussions](../../discussions)\n`;
+  readme += `- **Issues**: [GitHub Issues](../../issues)\n`;
+  readme += `- **Wiki**: [Project Wiki](../../wiki)\n\n`;
+  
+  readme += `### Contact\n\n`;
+  readme += `- **Email**: support@${projectName}.com\n`;
+  readme += `- **Twitter**: [@${projectName}](https://twitter.com/${projectName})\n`;
+  readme += `- **Discord**: [Join our server](https://discord.gg/${projectName})\n\n`;
+  
   // Footer
-  readme += `---\n`;
-  readme += `Generated with ❤️ by GitGen\n`;
+  readme += `---\n\n`;
+  readme += `<div align="center">\n\n`;
+  readme += `**Made with ❤️ by the ${projectName} team**\n\n`;
+  readme += `[![GitHub stars](https://img.shields.io/github/stars/username/${projectName}.svg?style=social&label=Star)](https://github.com/username/${projectName})\n`;
+  readme += `[![GitHub forks](https://img.shields.io/github/forks/username/${projectName}.svg?style=social&label=Fork)](https://github.com/username/${projectName})\n`;
+  readme += `[![GitHub watchers](https://img.shields.io/github/watchers/username/${projectName}.svg?style=social&label=Watch)](https://github.com/username/${projectName})\n\n`;
+  readme += `</div>\n`;
   
   return readme;
 }
