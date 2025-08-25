@@ -326,11 +326,29 @@ const Projects = () => {
                          </div>
                       </div>
                     </div>
-                    <div className="flex items-center space-x-2">
-                      {getStatusIcon(project.status)}
-                      <span className={`badge ${getStatusBadge(project.status)}`}>
-                        {getStatusText(project.status)}
+                    {/* Project Status Badge */}
+                    <div className="flex items-center space-x-2 mb-2">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        project.status === 'completed' 
+                          ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                          : project.status === 'processing'
+                          ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+                          : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                      }`}>
+                        {project.status === 'completed' ? '✅ Completed' : 
+                         project.status === 'processing' ? '⏳ Processing' : '❌ Failed'}
                       </span>
+                      
+                      {/* Mode Badge */}
+                      {project.mode && (
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          project.mode === 'v2' 
+                            ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+                            : 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200'
+                        }`}>
+                          {project.mode === 'v2' ? '📝 v2 - Beginner-Friendly' : '🔍 v1 - Comprehensive'}
+                        </span>
+                      )}
                     </div>
                   </div>
 

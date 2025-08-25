@@ -228,12 +228,17 @@ app.post('/api/test-project', async (req, res) => {
 // Create new documentation project
 app.post('/api/projects', async (req, res) => {
   try {
-    const { repoUrl, projectName, description } = req.body;
+    const { repoUrl, projectName, description, mode = 'v2' } = req.body;
     
-    console.log('Creating project:', { repoUrl, projectName, description });
+    console.log('Creating project:', { repoUrl, projectName, description, mode });
     
     if (!repoUrl || !projectName) {
       return res.status(400).json({ error: 'Repository URL and project name are required' });
+    }
+
+    // Validate mode parameter
+    if (mode && !['v1', 'v2'].includes(mode)) {
+      return res.status(400).json({ error: 'Invalid mode. Use "v1" for comprehensive or "v2" for beginner-friendly.' });
     }
 
     // Validate repository URL format
@@ -250,7 +255,8 @@ app.post('/api/projects', async (req, res) => {
       status: 'processing',
       createdAt: new Date().toISOString(),
       documentation: null,
-      error: null
+      error: null,
+      mode: mode || 'v2' // Store the selected mode
     };
     
     // Validate project structure
@@ -265,6 +271,7 @@ app.post('/api/projects', async (req, res) => {
       projectId, 
       projectName, 
       repoUrl, 
+      mode,
       totalProjects: projects.size 
     });
     
@@ -274,13 +281,14 @@ app.post('/api/projects', async (req, res) => {
       id: storedProject?.id, 
       projectName: storedProject?.projectName, 
       repoUrl: storedProject?.repoUrl, 
-      status: storedProject?.status 
+      status: storedProject?.status,
+      mode: storedProject?.mode
     });
 
-    // Process repository asynchronously
-    processRepository(projectId, repoUrl);
+    // Process repository asynchronously with selected mode
+    processRepository(projectId, repoUrl, mode);
 
-    res.json({ projectId, status: 'processing' });
+    res.json({ projectId, status: 'processing', mode });
   } catch (error) {
     console.error('Error creating project:', error);
     res.status(500).json({ error: 'Failed to create project' });
@@ -420,15 +428,94 @@ app.get('/api/ai-config', (req, res) => {
   }
 });
 
+// Get available README generation modes
+app.get('/api/readme-modes', (req, res) => {
+  console.log('README modes endpoint called');
+  try {
+    const modes = {
+      v2: {
+        name: 'v2 - Beginner-Friendly',
+        description: 'Simple, focused README generation with essential sections. Perfect for quick documentation and beginner-friendly projects.',
+        features: [
+          'Clear title and description',
+          'Installation instructions',
+          'Usage examples',
+          'Features section',
+          'Contributing guidelines',
+          'License information'
+        ],
+        recommended: true,
+        default: true
+      },
+      v1: {
+        name: 'v1 - Comprehensive',
+        description: 'Detailed, comprehensive README generation with advanced sections. Ideal for complex projects requiring extensive documentation.',
+        features: [
+          'All v2 features plus:',
+          'Detailed code analysis',
+          'API reference',
+          'Project structure',
+          'Testing documentation',
+          'Deployment guides',
+          'Troubleshooting',
+          'Performance considerations'
+        ],
+        recommended: false,
+        default: false
+      }
+    };
+
+    res.json({
+      modes,
+      currentDefault: 'v2',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error getting README modes:', error);
+    res.status(500).json({ error: 'Failed to get README modes' });
+  }
+});
+
+// Debug endpoint to show project mode information
+app.get('/api/debug/project/:projectId/mode', (req, res) => {
+  const { projectId } = req.params;
+  console.log(`Debug mode endpoint called for project: ${projectId}`);
+  
+  try {
+    const project = projects.get(projectId);
+    if (!project) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+    
+    const modeInfo = {
+      projectId: project.id,
+      projectName: project.projectName,
+      repoUrl: project.repoUrl,
+      status: project.status,
+      mode: project.mode || 'v2',
+      modeDescription: project.mode === 'v1' ? 'Comprehensive (v1)' : 'Beginner-Friendly (v2)',
+      createdAt: project.createdAt,
+      completedAt: project.completedAt,
+      hasDocumentation: !!project.documentation,
+      hasProgress: !!project.progress
+    };
+    
+    res.json(modeInfo);
+  } catch (error) {
+    console.error('Error getting project mode info:', error);
+    res.status(500).json({ error: 'Failed to get project mode information' });
+  }
+});
+
 // Process repository and generate documentation
-async function processRepository(projectId, repoUrl) {
+async function processRepository(projectId, repoUrl, mode = 'v2') {
   const project = projects.get(projectId);
   if (!project) {
     console.error(`Project ${projectId} not found when starting processing`);
     return;
   }
 
-  console.log(`Starting to process repository: ${repoUrl} for project: ${projectId}`);
+  console.log(`Starting to process repository: ${repoUrl} for project: ${projectId} (${mode.toUpperCase()})`);
   console.log('Project data at start:', { 
     id: project.id, 
     projectName: project.projectName, 
@@ -494,13 +581,13 @@ async function processRepository(projectId, repoUrl) {
     project.progress.step = 4;
     project.progress.message = 'Generating documentation...';
     console.log(`Generating documentation for: ${tempDir}`);
-    const documentation = await generateDocumentation(tempDir, project);
+    const documentation = await generateDocumentation(tempDir, project, mode);
     
     // Step 5: Generate AI README
     project.progress.currentStep = 'ai_generation';
     project.progress.step = 5;
-    project.progress.message = 'Generating AI-powered README...';
-    console.log(`Generating AI README for: ${tempDir}`);
+    project.progress.message = `Generating AI-powered README (${mode.toUpperCase()})...`;
+    console.log(`Generating AI README for: ${tempDir} (${mode.toUpperCase()})`);
 
     // Step 6: Finalizing
     project.progress.currentStep = 'finalizing';
@@ -524,7 +611,7 @@ async function processRepository(projectId, repoUrl) {
     currentProject.progress.estimatedTime = Math.round(totalTime / 1000);
     currentProject.progress.message = 'Documentation generation completed!';
     
-    console.log(`Project ${projectId} completed successfully in ${currentProject.progress.estimatedTime}s`);
+    console.log(`Project ${projectId} completed successfully in ${currentProject.progress.estimatedTime}s (${mode.toUpperCase()})`);
     console.log('Final project data:', {
       id: currentProject.id,
       projectName: currentProject.projectName,
@@ -567,7 +654,7 @@ async function processRepository(projectId, repoUrl) {
 }
 
 // Generate documentation from repository
-async function generateDocumentation(repoPath, project = null) {
+async function generateDocumentation(repoPath, project = null, mode = 'v2') {
   const documentation = {
     readme: null,
     files: [],
@@ -609,11 +696,11 @@ async function generateDocumentation(repoPath, project = null) {
     }
     documentation.summary = generateSummary(documentation);
     
-    // Generate a new README based on the analysis
+    // Generate a new README based on the analysis with selected mode
     if (project?.progress) {
-      project.progress.message = 'Generating AI-powered README...';
+      project.progress.message = `Generating AI-powered README (${mode.toUpperCase()})...`;
     }
-    documentation.generatedReadme = await generateNewReadme(repoPath, documentation);
+    documentation.generatedReadme = await generateNewReadme(repoPath, documentation, mode);
     
   } catch (error) {
     console.error('Error generating documentation:', error);
@@ -904,9 +991,9 @@ function generateSummary(documentation) {
 }
 
 // Generate a new README file based on repository analysis
-async function generateNewReadme(repoPath, documentation) {
+async function generateNewReadme(repoPath, documentation, mode = 'v2') {
   try {
-    console.log('Generating new README for repository...');
+    console.log(`Generating new README for repository (${mode.toUpperCase()})...`);
     
     // Get package.json if it exists
     let packageInfo = null;
@@ -936,10 +1023,10 @@ async function generateNewReadme(repoPath, documentation) {
       }
     }
 
-    // Generate README content
-    const readmeContent = await generateReadmeContent(documentation, packageInfo, mainFile);
+    // Generate README content with selected mode
+    const readmeContent = await generateReadmeContent(documentation, packageInfo, mainFile, mode);
     
-    console.log('README generation completed');
+    console.log(`README generation completed (${mode.toUpperCase()})`);
     return {
       content: readmeContent,
       markdown: marked.parse(readmeContent),
@@ -953,26 +1040,26 @@ async function generateNewReadme(repoPath, documentation) {
 }
 
 // Generate README content based on analysis
-async function generateReadmeContent(documentation, packageInfo, mainFile) {
+async function generateReadmeContent(documentation, packageInfo, mainFile, mode = 'v2') {
   const projectName = packageInfo?.name || 'Project';
   
-             // Try AI generation first, fallback to template-based generation
-           if (geminiAI) {
-             try {
-               console.log('🤖 Using AI to generate README...');
-               const aiReadme = await generateAIReadme(documentation, packageInfo, mainFile);
-               if (aiReadme) {
-                 console.log('✅ AI README generation successful');
-                 return aiReadme;
-               }
-             } catch (error) {
-               console.error('❌ AI generation failed, falling back to template:', error.message);
-             }
-           }
+  // Try AI generation first, fallback to template-based generation
+  if (geminiAI) {
+    try {
+      console.log(`🤖 Using AI to generate README (${mode.toUpperCase()})...`);
+      const aiReadme = await generateAIReadme(documentation, packageInfo, mainFile, mode);
+      if (aiReadme) {
+        console.log(`✅ AI README generation successful (${mode.toUpperCase()})`);
+        return aiReadme;
+      }
+    } catch (error) {
+      console.error(`❌ AI generation failed (${mode.toUpperCase()}), falling back to template:`, error.message);
+    }
+  }
 
-           // Fallback to template-based generation (when no API key or AI fails)
-           console.log('📝 Using template-based README generation...');
-           return generateTemplateReadme(documentation, packageInfo, mainFile);
+  // Fallback to template-based generation (when no API key or AI fails)
+  console.log('📝 Using template-based README generation...');
+  return generateTemplateReadme(documentation, packageInfo, mainFile);
 }
 
 // Generate intelligent description based on code analysis
@@ -1482,7 +1569,7 @@ function analyzeCodebase(documentation) {
 }
 
 // Generate AI-powered README using Gemini
-async function generateAIReadme(documentation, packageInfo, mainFile) {
+async function generateAIReadme(documentation, packageInfo, mainFile, mode = 'v2') {
   if (!geminiAI) {
     throw new Error('Gemini AI not initialized');
   }
@@ -1490,11 +1577,18 @@ async function generateAIReadme(documentation, packageInfo, mainFile) {
   try {
     const model = geminiAI.getGenerativeModel({ model: AI_CONFIG.model });
     
-    // Prepare the prompt with project context
-    const prompt = buildAIPrompt(documentation, packageInfo, mainFile);
+    // Prepare the prompt based on selected mode
+    let prompt;
+    if (mode === 'v1') {
+      prompt = buildAIPrompt(documentation, packageInfo, mainFile);
+      console.log('🤖 Using AI v1 (comprehensive) prompt...');
+    } else {
+      prompt = buildAIPromptV2(documentation, packageInfo, mainFile);
+      console.log('🤖 Using AI v2 (beginner-friendly) prompt...');
+    }
     
-    console.log('🤖 Sending prompt to Gemini AI...');
     console.log(`   Model: ${AI_CONFIG.model}`);
+    console.log(`   Mode: ${mode.toUpperCase()}`);
     
     const result = await model.generateContent(prompt);
     const response = await result.response;
@@ -1504,11 +1598,11 @@ async function generateAIReadme(documentation, packageInfo, mainFile) {
       throw new Error('AI generated content too short or empty');
     }
     
-    console.log('✅ AI generated README successfully');
+    console.log(`✅ AI generated README successfully (${mode.toUpperCase()})`);
     return aiGeneratedReadme;
     
   } catch (error) {
-    console.error('❌ AI generation error:', error);
+    console.error(`❌ AI generation error (${mode.toUpperCase()}):`, error);
     
     // Handle specific Gemini API errors
     if (error.message.includes('404 Not Found') || error.message.includes('models/')) {
@@ -1520,7 +1614,7 @@ async function generateAIReadme(documentation, packageInfo, mainFile) {
   }
 }
 
-// Build comprehensive AI prompt for README generation
+// Build comprehensive AI prompt for README generation (v1 - comprehensive)
 function buildAIPrompt(documentation, packageInfo, mainFile) {
   const projectName = packageInfo?.name || 'Project';
   const description = packageInfo?.description || '';
@@ -1658,6 +1752,105 @@ The README should be production-ready and immediately usable. It should make dev
 Generate only the README content in Markdown format, starting with the title. Make it at least 3-4 times more comprehensive than a basic README.`;
 
   return prompt;
+}
+
+// Build simple, focused AI prompt for README generation (v2 - beginner-friendly)
+function buildAIPromptV2(documentation, packageInfo, mainFile) {
+  const projectName = packageInfo?.name || 'Project';
+  const description = packageInfo?.description || '';
+  
+  // Extract key information for the AI
+  const languages = Object.keys(documentation.summary.languages || {});
+  const totalFiles = documentation.summary.totalFiles || 0;
+  const totalDirs = documentation.summary.totalDirectories || 0;
+  
+  // Get file tree structure
+  const fileTree = generateFileTree(documentation.structure);
+  
+  // Get key files content
+  const keyFiles = documentation.files
+    .filter(f => f.raw && f.raw.length > 50)
+    .slice(0, 3)
+    .map(f => `File: ${f.path}\nContent: ${f.raw.substring(0, 200)}...`)
+    .join('\n\n');
+  
+  // Get dependencies
+  const dependencies = [];
+  if (packageInfo) {
+    if (packageInfo.dependencies) {
+      Object.entries(packageInfo.dependencies).forEach(([name, version]) => {
+        dependencies.push(`${name} ${version}`);
+      });
+    }
+    if (packageInfo.devDependencies) {
+      Object.entries(packageInfo.devDependencies).forEach(([name, version]) => {
+        dependencies.push(`${name} ${version} (dev)`);
+      });
+    }
+  }
+  
+  // Check for existing docs
+  const existingDocs = documentation.readme ? 'README.md (existing)' : 'No existing documentation';
+  
+  const prompt = `You are GitGen, an AI documentation generator. 
+Your task is to generate a professional, beginner-friendly, and well-structured README.md file for the provided repository. 
+Follow GitHub README best practices, use clean Markdown, and make the output production-ready.
+
+Repository Name: ${projectName}
+Description: ${description}
+
+File Tree:
+${fileTree}
+
+Key Files and Contents (summarized or full text if small):
+${keyFiles}
+
+Dependencies (from package.json, requirements.txt, etc.):
+${dependencies.join(', ') || 'No dependencies detected'}
+
+Existing Docs (if any):
+${existingDocs}
+
+---
+
+🛠️ Instructions for README generation:
+1. Start with a clear title and short project description.
+2. Add badges if relevant (build status, license, etc.).
+3. Create an Installation section with setup instructions based on dependencies.
+4. Add a Usage section with code snippets or command examples.
+5. If the project has services, configs, or scripts, document how to run them.
+6. Add a Features section if possible (infer from files and dependencies).
+7. Add a Contributing section if not already present.
+8. Add a License section (use LICENSE file if available).
+9. Format everything properly in Markdown with headings, lists, and code blocks.
+
+If project purpose is unclear, infer from context (file names, dependencies, comments) and state assumptions.
+Keep the tone concise, helpful, and professional.
+
+Generate only the README content in Markdown format, starting with the title.`;
+
+  return prompt;
+}
+
+// Generate file tree for v2 prompt
+function generateFileTree(structure, prefix = '') {
+  const lines = [];
+  
+  function addStructureLines(structure, prefix = '') {
+    Object.entries(structure).forEach(([name, info]) => {
+      if (info.type === 'directory') {
+        lines.push(`${prefix}- ${name}/`);
+        if (info.children) {
+          addStructureLines(info.children, prefix + '  ');
+        }
+      } else {
+        lines.push(`${prefix}- ${name}`);
+      }
+    });
+  }
+  
+  addStructureLines(structure, prefix);
+  return lines.slice(0, 50).join('\n'); // Limit to first 50 items
 }
 
 // Generate template-based README (fallback)

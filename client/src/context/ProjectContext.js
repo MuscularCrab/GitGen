@@ -191,7 +191,8 @@ export const ProjectProvider = ({ children }) => {
         id: response.data.projectId,
         ...projectData,
         status: 'processing',
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        mode: projectData.mode || 'v2' // Store the selected mode
       };
       
       dispatch({ type: 'ADD_PROJECT', payload: newProject });
@@ -199,7 +200,7 @@ export const ProjectProvider = ({ children }) => {
       // Start polling for updates with a much shorter timeout
       pollProjectStatus(response.data.projectId);
       
-      return response.data.projectId;
+      return response.data;
     } catch (error) {
       console.error('Project creation error:', error);
       dispatch({ type: 'SET_ERROR', payload: 'Failed to create project' });

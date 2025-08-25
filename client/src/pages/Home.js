@@ -1,207 +1,115 @@
-import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { useProjects } from '../context/ProjectContext';
-import { apiBaseUrl } from '../config';
-import { 
-  BookOpen, 
-  GitBranch, 
-  Zap, 
-  Shield, 
-  Users, 
-  ArrowRight,
-  CheckCircle,
-  Clock,
-  AlertCircle
-} from 'lucide-react';
-import Loader from '../components/Loader';
+import React, { useState, useContext } from 'react';
+import { ProjectContext } from '../context/ProjectContext';
+import { useNavigate } from 'react-router-dom';
 
 const Home = () => {
-  const { createProject, loading, error, clearError } = useProjects();
+  const { createProject } = useContext(ProjectContext);
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
-    repoUrl: ''
+    repoUrl: '',
+    projectName: '',
+    description: '',
+    mode: 'v2' // Default to v2
   });
-
-  // Add AI status display
-  const [aiConfig, setAiConfig] = useState(null);
-  const [aiLoading, setAiLoading] = useState(true);
   const [processingProgress, setProcessingProgress] = useState(null);
+  const [readmeModes, setReadmeModes] = useState(null);
+  const [loadingModes, setLoadingModes] = useState(false);
 
-  useEffect(() => {
-    const checkAIStatus = async () => {
-      try {
-        setAiLoading(true);
-        const response = await fetch('/api/ai-config');
-        const config = await response.json();
-        setAiConfig(config);
-      } catch (error) {
-        console.error('Failed to check AI status:', error);
-      } finally {
-        setAiLoading(false);
-      }
-    };
-    
-    checkAIStatus();
+  // Load README modes on component mount
+  React.useEffect(() => {
+    loadReadmeModes();
   }, []);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    clearError();
-    
-    // Extract project name from GitHub URL
-    const urlParts = formData.repoUrl.split('/');
-    const projectName = urlParts[urlParts.length - 1] || 'Project';
-    
-    const projectData = {
-      repoUrl: formData.repoUrl,
-      projectName: projectName,
-      description: '' // AI will generate this from code analysis
-    };
-    
-    console.log('Form submitted with data:', projectData);
-    
+  const loadReadmeModes = async () => {
+    setLoadingModes(true);
     try {
-      console.log('Calling createProject...');
-      const projectId = await createProject(projectData);
-      console.log('Project created successfully with ID:', projectId);
-      
-      // Show success message and disable form
-      setFormData(prev => ({ ...prev, submitted: true }));
-      
-      // Wait a moment to show success, then start monitoring
-      setTimeout(() => {
-        // Start monitoring project status for AI generation completion
-        monitorProjectStatus(projectId);
-      }, 2000);
-      
-    } catch (error) {
-      console.error('Failed to create project:', error);
-      // Re-enable form on error
-      setFormData(prev => ({ ...prev, submitted: false }));
-    }
-  };
-
-  // Function to monitor project status and show progress
-  const monitorProjectStatus = async (projectId) => {
-    try {
-      const response = await fetch(`/api/projects/${projectId}/progress`);
-      const project = await response.json();
-      
-      if (project.status === 'completed' || project.status === 'failed') {
-        // AI generation completed, redirect to project detail
-        console.log('AI generation completed, redirecting to project...');
-        window.location.href = `/projects/${projectId}`;
-      } else {
-        // Update progress display
-        setProcessingProgress(project);
-        // Continue polling if still processing
-        setTimeout(() => monitorProjectStatus(projectId), 2000);
+      const response = await fetch('/api/readme-modes');
+      if (response.ok) {
+        const data = await response.json();
+        setReadmeModes(data.modes);
       }
     } catch (error) {
-      console.error('Failed to monitor project status:', error);
-      // On error, redirect anyway after a delay
-      setTimeout(() => {
-        window.location.href = `/projects/${projectId}`;
-      }, 5000);
+      console.error('Error loading README modes:', error);
+    } finally {
+      setLoadingModes(false);
     }
   };
 
   const handleInputChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
   };
 
-
-
-  const features = [
-    {
-      icon: Zap,
-      title: 'Lightning Fast',
-      description: 'Generate comprehensive documentation in seconds, not minutes.'
-    },
-    {
-      icon: Shield,
-      title: 'Secure & Private',
-      description: 'Your code stays private. We only process what you share.'
-    },
-    {
-      icon: Users,
-      title: 'Team Collaboration',
-      description: 'Share documentation with your team and stakeholders.'
-    },
-    {
-      icon: BookOpen,
-      title: 'Smart Analysis',
-      description: 'AI-powered code analysis for better documentation.'
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!formData.repoUrl || !formData.projectName) {
+      alert('Please fill in all required fields');
+      return;
     }
-  ];
 
-  const supportedLanguages = [
-    'JavaScript', 'TypeScript', 'Python', 'Java', 'C++', 'C#', 'PHP',
-    'Ruby', 'Go', 'Rust', 'Swift', 'Kotlin', 'Scala', 'Clojure'
-  ];
+    try {
+      const project = await createProject({
+        repoUrl: formData.repoUrl,
+        projectName: formData.projectName,
+        description: formData.description,
+        mode: formData.mode
+      });
+
+      if (project && project.projectId) {
+        setFormData(prev => ({ ...prev, submitted: true, success: true }));
+        monitorProjectStatus(project.projectId);
+      }
+    } catch (error) {
+      console.error('Error creating project:', error);
+      alert('Failed to create project. Please try again.');
+    }
+  };
+
+  const monitorProjectStatus = async (projectId) => {
+    try {
+      const response = await fetch(`/api/projects/${projectId}/progress`);
+      const project = await response.json();
+
+      if (project.status === 'completed' || project.status === 'failed') {
+        console.log('AI generation completed, redirecting to project...');
+        window.location.href = `/projects/${projectId}`;
+      } else {
+        setProcessingProgress(project);
+        setTimeout(() => monitorProjectStatus(projectId), 2000);
+      }
+    } catch (error) {
+      console.error('Error monitoring project status:', error);
+    }
+  };
 
   return (
-    <div className="space-y-16">
-      {/* Hero Section */}
-      <section className="text-center py-16">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
+      <div className="container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto">
-          <h1 className="text-5xl md:text-6xl font-bold text-gray-900 mb-6">
-            Generate Documentation
-            <span className="text-primary-600"> Automatically</span>
-          </h1>
-          <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
-            Transform your Git repositories into beautiful, comprehensive documentation 
-            with just a few clicks. Generate brand new README files automatically based on your code analysis.
-          </p>
-          
-          {/* CTA Buttons */}
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link
-              to="/projects"
-              className="btn-primary text-lg px-8 py-3 inline-flex items-center space-x-2"
-            >
-              <span>View Projects</span>
-              <ArrowRight className="w-5 h-5" />
-            </Link>
-            <a
-              href="#how-it-works"
-              className="btn-secondary text-lg px-8 py-3"
-            >
-              Learn More
-            </a>
+          {/* Header */}
+          <div className="text-center mb-12">
+            <h1 className="text-5xl font-bold text-gray-900 dark:text-white mb-4">
+              GitGen
+            </h1>
+            <p className="text-xl text-gray-600 dark:text-gray-300">
+              AI-Powered README Generation for GitHub Repositories
+            </p>
+            <p className="text-lg text-gray-500 dark:text-gray-400 mt-2">
+              Transform your repository into professional documentation in minutes
+            </p>
           </div>
-        </div>
-      </section>
 
-      {/* Project Creation Form - Horizontal Layout */}
-      <section className="max-w-6xl mx-auto">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Main Form */}
-          <div className="card">
-            <div className="text-center mb-8">
-              <h2 className="text-3xl font-bold text-gray-900 mb-2">
-                Start Your First Project
-              </h2>
-              <p className="text-gray-600">
-                Just paste your GitHub repository URL and we'll analyze the code to generate a professional README automatically.
-              </p>
-            </div>
-
-            {error && (
-              <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-                <div className="flex items-center space-x-2 text-red-800">
-                  <AlertCircle className="w-5 h-5" />
-                  <span>{error}</span>
-                </div>
-              </div>
-            )}
-
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8 mb-8">
             <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Repository URL */}
               <div>
-                <label htmlFor="repoUrl" className="block text-sm font-medium text-gray-700 mb-2">
-                  GitHub Repository URL *
+                <label htmlFor="repoUrl" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Repository URL *
                 </label>
                 <input
                   type="url"
@@ -210,270 +118,228 @@ const Home = () => {
                   value={formData.repoUrl}
                   onChange={handleInputChange}
                   placeholder="https://github.com/username/repository"
-                  className="input-field"
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                   required
-                  disabled={formData.submitted}
                 />
-                <p className="mt-1 text-sm text-gray-500">
-                  Just paste the GitHub URL - we'll analyze the code and generate everything else automatically
+                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                  Enter the HTTPS or SSH URL of your GitHub repository
                 </p>
               </div>
 
-              {formData.submitted ? (
-                <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-                  <div className="flex items-center space-x-2 text-green-800">
-                    <CheckCircle className="w-5 h-5" />
-                    <span className="font-medium">Project Created Successfully!</span>
+              {/* Project Name */}
+              <div>
+                <label htmlFor="projectName" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Project Name *
+                </label>
+                <input
+                  type="text"
+                  id="projectName"
+                  name="projectName"
+                  value={formData.projectName}
+                  onChange={handleInputChange}
+                  placeholder="My Awesome Project"
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                  required
+                />
+              </div>
+
+              {/* Description */}
+              <div>
+                <label htmlFor="description" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Description (Optional)
+                </label>
+                <textarea
+                  id="description"
+                  name="description"
+                  value={formData.description}
+                  onChange={handleInputChange}
+                  placeholder="Brief description of your project..."
+                  rows="3"
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                />
+              </div>
+
+              {/* README Generation Mode Selection */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  README Generation Mode *
+                </label>
+                {loadingModes ? (
+                  <div className="flex items-center justify-center py-4">
+                    <div className="loader"></div>
+                    <span className="ml-2 text-gray-500">Loading modes...</span>
                   </div>
-                  <p className="text-sm text-green-700 mt-2">
-                    We're now analyzing your repository and generating comprehensive documentation. 
-                    This may take a few minutes. You'll be redirected to your project when it's complete.
-                  </p>
-                  
-                  {/* Progress Display */}
-                  {processingProgress && (
-                    <div className="mt-4">
-                      <div className="flex items-center justify-between text-sm text-green-700 mb-2">
-                        <span>{processingProgress.message || 'Processing...'}</span>
-                        <span>{processingProgress.percentage || 0}%</span>
-                      </div>
-                      
-                      {/* Progress Bar */}
-                      <div className="w-full bg-green-200 rounded-full h-2 mb-3">
-                        <div 
-                          className="bg-green-600 h-2 rounded-full transition-all duration-500 ease-out"
-                          style={{ width: `${processingProgress.percentage || 0}%` }}
-                        ></div>
-                      </div>
-                      
-                      {/* Progress Stages */}
-                      <div className="grid grid-cols-6 gap-2 text-xs">
-                        {[
-                          { step: 1, label: 'Setup' },
-                          { step: 2, label: 'Clone' },
-                          { step: 3, label: 'Analyze' },
-                          { step: 4, label: 'Generate' },
-                          { step: 5, label: 'AI' },
-                          { step: 6, label: 'Complete' }
-                        ].map((stage) => (
-                          <div key={stage.step} className="text-center">
-                            <div className={`w-4 h-4 rounded-full mx-auto mb-1 ${
-                              processingProgress.step >= stage.step ? 'bg-green-600' : 'bg-green-200'
-                            }`}></div>
-                            <span className={processingProgress.step >= stage.step ? 'font-medium text-green-700' : 'text-green-500'}>
-                              {stage.label}
-                            </span>
+                ) : readmeModes ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {Object.entries(readmeModes).map(([modeKey, modeInfo]) => (
+                      <div
+                        key={modeKey}
+                        className={`relative border-2 rounded-lg p-4 cursor-pointer transition-all ${
+                          formData.mode === modeKey
+                            ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                            : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
+                        }`}
+                        onClick={() => setFormData(prev => ({ ...prev, mode: modeKey }))}
+                      >
+                        <div className="flex items-start space-x-3">
+                          <input
+                            type="radio"
+                            name="mode"
+                            value={modeKey}
+                            checked={formData.mode === modeKey}
+                            onChange={() => setFormData(prev => ({ ...prev, mode: modeKey }))}
+                            className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                          />
+                          <div className="flex-1">
+                            <div className="flex items-center space-x-2 mb-2">
+                              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                                {modeInfo.name}
+                              </h3>
+                              {modeInfo.recommended && (
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                                  Recommended
+                                </span>
+                              )}
+                              {modeInfo.default && (
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                                  Default
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                              {modeInfo.description}
+                            </p>
+                            <div className="text-xs text-gray-500 dark:text-gray-400">
+                              <strong>Features:</strong>
+                              <ul className="mt-1 space-y-1">
+                                {modeInfo.features.map((feature, index) => (
+                                  <li key={index} className="flex items-center">
+                                    <span className="w-1.5 h-1.5 bg-gray-400 rounded-full mr-2"></span>
+                                    {feature}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
                           </div>
-                        ))}
-                      </div>
-                      
-                      {processingProgress.estimatedTime && (
-                        <div className="mt-3 text-xs text-green-600 text-center">
-                          <strong>Estimated Time Remaining:</strong> ~{processingProgress.estimatedTime} seconds
                         </div>
-                      )}
-                    </div>
-                  )}
-                  
-                  <div className="mt-3">
-                    <Loader size="small" />
-                    <span className="text-sm text-green-600 ml-2">Processing...</span>
+                      </div>
+                    ))}
                   </div>
-                </div>
-              ) : (
+                ) : (
+                  <div className="text-center py-4 text-gray-500">
+                    Failed to load README modes. Using default mode.
+                  </div>
+                )}
+              </div>
+
+              {/* Submit Button */}
+              <div className="pt-4">
                 <button
                   type="submit"
-                  disabled={loading}
-                  className="btn-primary w-full py-3 text-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={formData.submitted}
+                  className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold py-4 px-6 rounded-lg transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                 >
-                  <div className="flex items-center justify-center space-x-2">
-                    {loading ? (
-                      <>
-                        <Loader size="small" />
-                        <span>Creating Project...</span>
-                      </>
-                    ) : (
-                      <>
-                        <BookOpen className="w-5 h-5" />
-                        <span>Generate Documentation</span>
-                      </>
+                  {formData.submitted ? 'Generating Documentation...' : 'Generate Documentation'}
+                </button>
+              </div>
+            </form>
+
+            {/* Success Message and Progress */}
+            {formData.submitted && formData.success && (
+              <div className="mt-6 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    <svg className="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="ml-3">
+                    <h3 className="text-sm font-medium text-green-800 dark:text-green-200">
+                      Documentation generation started!
+                    </h3>
+                    <p className="mt-1 text-sm text-green-700 dark:text-green-300">
+                      We're analyzing your repository and generating comprehensive documentation. This may take a few minutes.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Progress Display */}
+                {processingProgress && (
+                  <div className="mt-4">
+                    <div className="flex items-center justify-between text-sm text-green-700 mb-2">
+                      <span>{processingProgress.message || 'Processing...'}</span>
+                      <span>{processingProgress.percentage || 0}%</span>
+                    </div>
+                    <div className="w-full bg-green-200 rounded-full h-2 mb-3">
+                      <div
+                        className="bg-green-600 h-2 rounded-full transition-all duration-500 ease-out"
+                        style={{ width: `${processingProgress.percentage || 0}%` }}
+                      ></div>
+                    </div>
+                    <div className="grid grid-cols-6 gap-2 text-xs">
+                      {[
+                        { step: 1, label: 'Setup' }, { step: 2, label: 'Clone' },
+                        { step: 3, label: 'Analyze' }, { step: 4, label: 'Generate' },
+                        { step: 5, label: 'AI' }, { step: 6, label: 'Complete' }
+                      ].map((stage) => (
+                        <div key={stage.step} className="text-center">
+                          <div className={`w-4 h-4 rounded-full mx-auto mb-1 ${
+                            processingProgress.step >= stage.step ? 'bg-green-600' : 'bg-green-200'
+                          }`}></div>
+                          <span className={processingProgress.step >= stage.step ? 'font-medium text-green-700' : 'text-green-500'}>
+                            {stage.label}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                    {processingProgress.estimatedTime && (
+                      <div className="mt-3 text-xs text-green-600 text-center">
+                        <strong>Estimated Time Remaining:</strong> ~{processingProgress.estimatedTime} seconds
+                      </div>
                     )}
                   </div>
-                </button>
-              )}
-            </form>
-          </div>
-
-          {/* Generate README Box */}
-          <div className="card">
-            <div className="text-center mb-8">
-              <h2 className="text-3xl font-bold text-gray-900 mb-2">
-                Generate README from GitHub
-              </h2>
-              <p className="text-gray-600 mb-6">
-                Simply provide a GitHub repository URL and our AI will:
-              </p>
-            </div>
-            <ul className="space-y-3 text-gray-600 mb-6">
-              <li className="flex items-center space-x-2">
-                <div className="w-2 h-2 bg-primary-500 rounded-full"></div>
-                <span>Analyze your repository structure</span>
-              </li>
-              <li className="flex items-center space-x-2">
-                <div className="w-2 h-2 bg-primary-500 rounded-full"></div>
-                <span>Understand your codebase</span>
-              </li>
-              <li className="flex items-center space-x-2">
-                <div className="w-2 h-2 bg-primary-500 rounded-full"></div>
-                <span>Generate comprehensive documentation</span>
-              </li>
-              <li className="flex items-center space-x-2">
-                <div className="w-2 h-2 bg-primary-500 rounded-full"></div>
-                <span>Create professional README files</span>
-              </li>
-            </ul>
-            <div className="text-sm text-gray-500 text-center">
-              No manual configuration required - just paste and generate!
-            </div>
-          </div>
-        </div>
-
-        {/* AI Status Display */}
-        {aiConfig && (
-          <div className="mt-8 p-4 bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg">
-            <div className="flex items-center space-x-2 text-purple-800 mb-2">
-              <span className="text-sm font-medium">
-                {aiConfig.aiEnabled ? '🤖 AI-Powered Generation' : '⚠️ AI Generation Disabled'}
-              </span>
-            </div>
-            <div className="text-sm text-purple-700">
-              {aiConfig.aiEnabled ? (
-                <div>
-                  <p>✅ Using Gemini AI for intelligent README generation</p>
-                  <p className="text-xs mt-1">Model: {aiConfig.model} | Temperature: {aiConfig.temperature}</p>
-                </div>
-              ) : (
-                <div>
-                  <p>Using template-based generation. Add GEMINI_API_KEY to enable AI.</p>
-                  <a 
-                    href="https://makersuite.google.com/app/apikey" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="text-purple-600 hover:text-purple-800 underline text-xs"
-                  >
-                    Get Gemini API Key
-                  </a>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-      </section>
-
-      {/* Features Section */}
-      <section className="py-16">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold text-gray-900 mb-4">
-            Why Choose GitGen?
-          </h2>
-          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            Built for developers, by developers. Get professional-grade documentation 
-            without the hassle.
-          </p>
-        </div>
-
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
-          {features.map((feature, index) => {
-            const Icon = feature.icon;
-            return (
-              <div key={index} className="text-center">
-                <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Icon className="w-8 h-8 text-primary-600" />
-                </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  {feature.title}
-                </h3>
-                <p className="text-gray-600">
-                  {feature.description}
-                </p>
+                )}
               </div>
-            );
-          })}
-        </div>
-      </section>
-
-      {/* Supported Languages */}
-      <section className="py-16 bg-white rounded-2xl">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold text-gray-900 mb-4">
-            Supports All Major Languages
-          </h2>
-          <p className="text-xl text-gray-600">
-            From JavaScript to Rust, we've got you covered.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 max-w-4xl mx-auto">
-          {supportedLanguages.map((language, index) => (
-            <div
-              key={index}
-              className="bg-gray-50 rounded-lg p-4 text-center hover:bg-primary-50 transition-colors duration-200"
-            >
-              <span className="text-sm font-medium text-gray-700">{language}</span>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* How It Works */}
-      <section id="how-it-works" className="py-16">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold text-gray-900 mb-4">
-            How It Works
-          </h2>
-          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            Three simple steps to beautiful documentation
-          </p>
-        </div>
-
-        <div className="grid md:grid-cols-3 gap-8 max-w-4xl mx-auto">
-          <div className="text-center">
-            <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl font-bold text-primary-600">
-              1
-            </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
-              Connect Repository
-            </h3>
-            <p className="text-gray-600">
-              Provide your Git repository URL and project details
-            </p>
+            )}
           </div>
 
-          <div className="text-center">
-            <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl font-bold text-primary-600">
-              2
+          {/* Features Section */}
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8">
+            <h2 className="text-3xl font-bold text-center text-gray-900 dark:text-white mb-8">
+              Why Choose GitGen?
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              <div className="text-center">
+                <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <svg className="w-8 h-8 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Lightning Fast</h3>
+                <p className="text-gray-600 dark:text-gray-400">Generate professional READMEs in minutes, not hours</p>
+              </div>
+              <div className="text-center">
+                <div className="w-16 h-16 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <svg className="w-8 h-8 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">AI-Powered</h3>
+                <p className="text-gray-600 dark:text-gray-400">Advanced AI analyzes your code and generates intelligent documentation</p>
+              </div>
+              <div className="text-center">
+                <div className="w-16 h-16 bg-purple-100 dark:bg-purple-900 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <svg className="w-8 h-8 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Professional Quality</h3>
+                <p className="text-gray-600 dark:text-gray-400">GitHub-ready documentation that impresses contributors and users</p>
+              </div>
             </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
-              Code Analysis
-            </h3>
-            <p className="text-gray-600">
-              Our system analyzes your code structure, functions, and dependencies
-            </p>
-          </div>
-
-          <div className="text-center">
-            <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl font-bold text-primary-600">
-              3
-            </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
-              New README Generated
-            </h3>
-            <p className="text-gray-600">
-              Get a professional README file ready to use in your repository
-            </p>
           </div>
         </div>
-      </section>
+      </div>
     </div>
   );
 };
