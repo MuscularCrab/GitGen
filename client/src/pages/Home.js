@@ -25,14 +25,6 @@ const Home = () => {
   const [aiConfig, setAiConfig] = useState(null);
   const [aiLoading, setAiLoading] = useState(true);
 
-  // Add progress tracking
-  const [progress, setProgress] = useState({
-    isProcessing: false,
-    percentage: 0,
-    stage: '',
-    message: ''
-  });
-
   useEffect(() => {
     const checkAIStatus = async () => {
       try {
@@ -50,16 +42,6 @@ const Home = () => {
     checkAIStatus();
   }, []);
 
-  // Cleanup progress intervals on unmount
-  useEffect(() => {
-    return () => {
-      // Cleanup any running progress intervals
-      if (progress.isProcessing) {
-        setProgress(prev => ({ ...prev, isProcessing: false }));
-      }
-    };
-  }, [progress.isProcessing]);
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     clearError();
@@ -76,45 +58,16 @@ const Home = () => {
     
     console.log('Form submitted with data:', projectData);
     
-    // Start progress tracking
-    setProgress({
-      isProcessing: true,
-      percentage: 0,
-      stage: 'Initializing',
-      message: 'Starting repository analysis...'
-    });
-    
-    // Start progress simulation
-    const progressInterval = simulateProgress();
-    
     try {
       console.log('Calling createProject...');
       const projectId = await createProject(projectData);
       console.log('Project created successfully with ID:', projectId);
       
-      // Clear progress interval and update to completion
-      clearInterval(progressInterval);
-      setProgress({
-        isProcessing: true,
-        percentage: 100,
-        stage: 'Complete',
-        message: 'Redirecting to project details...'
-      });
-      
-      // Redirect to project detail page
-      setTimeout(() => {
-        window.location.href = `/projects/${projectId}`;
-      }, 1000);
+      // Redirect to project detail page immediately
+      window.location.href = `/projects/${projectId}`;
       
     } catch (error) {
       console.error('Failed to create project:', error);
-      clearInterval(progressInterval);
-      setProgress({
-        isProcessing: false,
-        percentage: 0,
-        stage: 'Error',
-        message: 'Failed to process repository'
-      });
     }
   };
 
@@ -125,32 +78,7 @@ const Home = () => {
     });
   };
 
-  // Simulate progress updates during processing
-  const simulateProgress = () => {
-    const stages = [
-      { percentage: 10, stage: 'Cloning', message: 'Cloning repository from GitHub...' },
-      { percentage: 25, stage: 'Analyzing', message: 'Analyzing repository structure...' },
-      { percentage: 40, stage: 'Scanning', message: 'Scanning source code files...' },
-      { percentage: 60, stage: 'Processing', message: 'Processing code patterns and functions...' },
-      { percentage: 80, stage: 'Generating', message: 'Generating README with AI...' },
-      { percentage: 95, stage: 'Finalizing', message: 'Finalizing documentation...' }
-    ];
 
-    let currentStage = 0;
-    const progressInterval = setInterval(() => {
-      if (currentStage < stages.length && progress.isProcessing) {
-        setProgress(prev => ({
-          ...prev,
-          ...stages[currentStage]
-        }));
-        currentStage++;
-      } else if (currentStage >= stages.length) {
-        clearInterval(progressInterval);
-      }
-    }, 2000); // Update every 2 seconds
-
-    return progressInterval;
-  };
 
   const features = [
     {
@@ -213,104 +141,97 @@ const Home = () => {
         </div>
       </section>
 
-      {/* Project Creation Form */}
-      <section className="max-w-2xl mx-auto">
-        <div className="card">
-                     <div className="text-center mb-8">
-             <h2 className="text-3xl font-bold text-gray-900 mb-2">
-               Generate README from GitHub
-             </h2>
-                          <p className="text-gray-600">
+      {/* Project Creation Form - Horizontal Layout */}
+      <section className="max-w-6xl mx-auto">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Main Form */}
+          <div className="card">
+            <div className="text-center mb-8">
+              <h2 className="text-3xl font-bold text-gray-900 mb-2">
+                Start Your First Project
+              </h2>
+              <p className="text-gray-600">
                 Just paste your GitHub repository URL and we'll analyze the code to generate a professional README automatically.
               </p>
-           </div>
-
-          {error && (
-            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-              <div className="flex items-center space-x-2 text-red-800">
-                <AlertCircle className="w-5 h-5" />
-                <span>{error}</span>
-              </div>
             </div>
-          )}
 
-          
+            {error && (
+              <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+                <div className="flex items-center space-x-2 text-red-800">
+                  <AlertCircle className="w-5 h-5" />
+                  <span>{error}</span>
+                </div>
+              </div>
+            )}
 
-                     <form onSubmit={handleSubmit} className="space-y-6">
-             <div>
-               <label htmlFor="repoUrl" className="block text-sm font-medium text-gray-700 mb-2">
-                 GitHub Repository URL *
-               </label>
-               <input
-                 type="url"
-                 id="repoUrl"
-                 name="repoUrl"
-                 value={formData.repoUrl}
-                 onChange={handleInputChange}
-                 placeholder="https://github.com/username/repository"
-                 className="input-field"
-                 required
-               />
-               <p className="mt-1 text-sm text-gray-500">
-                 Just paste the GitHub URL - we'll analyze the code and generate everything else automatically
-               </p>
-             </div>
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div>
+                <label htmlFor="repoUrl" className="block text-sm font-medium text-gray-700 mb-2">
+                  GitHub Repository URL *
+                </label>
+                <input
+                  type="url"
+                  id="repoUrl"
+                  name="repoUrl"
+                  value={formData.repoUrl}
+                  onChange={handleInputChange}
+                  placeholder="https://github.com/username/repository"
+                  className="input-field"
+                  required
+                />
+                <p className="mt-1 text-sm text-gray-500">
+                  Just paste the GitHub URL - we'll analyze the code and generate everything else automatically
+                </p>
+              </div>
 
-                         <button
-               type="submit"
-               disabled={loading || progress.isProcessing}
-               className="btn-primary w-full py-3 text-lg disabled:opacity-50 disabled:cursor-not-allowed"
-             >
-               {loading || progress.isProcessing ? (
-                 <div className="flex items-center justify-center space-x-2">
-                   <Loader size="small" />
-                   <span>Processing...</span>
-                 </div>
-               ) : (
-                 <div className="flex items-center justify-center space-x-2">
-                   <BookOpen className="w-5 h-5" />
-                   <span>Generate Documentation</span>
-                 </div>
-               )}
-             </button>
-           </form>
+              <button
+                type="submit"
+                disabled={loading}
+                className="btn-primary w-full py-3 text-lg disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <div className="flex items-center justify-center space-x-2">
+                  <BookOpen className="w-5 h-5" />
+                  <span>Generate Documentation</span>
+                </div>
+              </button>
+            </form>
+          </div>
 
-           {/* Progress Indicator */}
-           {progress.isProcessing && (
-             <div className="mt-6 p-6 bg-blue-50 border border-blue-200 rounded-lg">
-               <div className="flex items-center justify-between mb-3">
-                 <h3 className="text-lg font-semibold text-blue-800">
-                   {progress.stage}
-                 </h3>
-                 <span className="text-sm font-medium text-blue-600">
-                   {progress.percentage}%
-                 </span>
-               </div>
-               
-               {/* Progress Bar */}
-               <div className="w-full bg-blue-200 rounded-full h-3 mb-3">
-                 <div 
-                   className="bg-blue-600 h-3 rounded-full transition-all duration-500 ease-out"
-                   style={{ width: `${progress.percentage}%` }}
-                 ></div>
-               </div>
-               
-               {/* Progress Message */}
-               <p className="text-sm text-blue-700 mb-2">
-                 {progress.message}
-               </p>
-               
-               {/* Progress Stages */}
-               <div className="flex justify-between text-xs text-blue-600">
-                 <span className={progress.percentage >= 10 ? 'font-semibold' : ''}>Clone</span>
-                 <span className={progress.percentage >= 25 ? 'font-semibold' : ''}>Analyze</span>
-                 <span className={progress.percentage >= 40 ? 'font-semibold' : ''}>Scan</span>
-                 <span className={progress.percentage >= 60 ? 'font-semibold' : ''}>Process</span>
-                 <span className={progress.percentage >= 80 ? 'font-semibold' : ''}>Generate</span>
-                 <span className={progress.percentage >= 95 ? 'font-semibold' : ''}>Complete</span>
-               </div>
-             </div>
-           )}
+          {/* Generate README Box */}
+          <div className="card">
+            <div className="text-center mb-8">
+              <h2 className="text-3xl font-bold text-gray-900 mb-2">
+                Generate README from GitHub
+              </h2>
+              <p className="text-gray-600 mb-6">
+                Simply provide a GitHub repository URL and our AI will:
+              </p>
+            </div>
+            <ul className="space-y-3 text-gray-600 mb-6">
+              <li className="flex items-center space-x-2">
+                <div className="w-2 h-2 bg-primary-500 rounded-full"></div>
+                <span>Analyze your repository structure</span>
+              </li>
+              <li className="flex items-center space-x-2">
+                <div className="w-2 h-2 bg-primary-500 rounded-full"></div>
+                <span>Understand your codebase</span>
+              </li>
+              <li className="flex items-center space-x-2">
+                <div className="w-2 h-2 bg-primary-500 rounded-full"></div>
+                <span>Generate comprehensive documentation</span>
+              </li>
+              <li className="flex items-center space-x-2">
+                <div className="w-2 h-2 bg-primary-500 rounded-full"></div>
+                <span>Create professional README files</span>
+              </li>
+            </ul>
+            <div className="text-sm text-gray-500 text-center">
+              No manual configuration required - just paste and generate!
+            </div>
+          </div>
+        </div>
+
+
 
           {/* AI Status Display */}
           {aiConfig && (

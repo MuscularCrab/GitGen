@@ -47,33 +47,28 @@ const ProjectDetail = () => {
     }
   }, [currentProject?.status, projectId]);
 
-  // Auto-refresh project status and progress when processing
+  // Fetch progress updates when processing (no auto-refresh)
   useEffect(() => {
-    let refreshInterval;
-    
     if (currentProject?.status === 'processing') {
       // Fetch progress immediately
       fetchProgress();
       
-      // Refresh every 2 seconds while processing
-      refreshInterval = setInterval(() => {
-        console.log('Auto-refreshing project status and progress...');
-        loadProject(projectId);
+      // Only fetch progress updates, don't refresh the entire project
+      const progressInterval = setInterval(() => {
+        console.log('Fetching progress updates...');
         fetchProgress();
       }, 2000);
+      
+      return () => {
+        clearInterval(progressInterval);
+      };
     } else {
       // Clear progress when not processing
       setProgress(null);
     }
-    
-    return () => {
-      if (refreshInterval) {
-        clearInterval(refreshInterval);
-      }
-    };
-  }, [currentProject?.status, projectId, loadProject, fetchProgress]);
+  }, [currentProject?.status, projectId, fetchProgress]);
 
-  // Show completion notification
+  // Show completion notification and reload project
   useEffect(() => {
     if (currentProject?.status === 'completed') {
       // Show a brief notification that processing is complete
@@ -81,13 +76,19 @@ const ProjectDetail = () => {
       notification.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50';
       notification.innerHTML = `
         <div class="flex items-center space-x-2">
-          <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+          <svg class="w-5 h-2" fill="currentColor" viewBox="0 0 20 20">
             <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
           </svg>
           <span>Documentation generation completed!</span>
+          <button onclick="this.parentElement.parentElement.remove()" class="ml-2 text-white hover:text-gray-200">×</button>
         </div>
       `;
       document.body.appendChild(notification);
+      
+      // Reload the project to show final results
+      setTimeout(() => {
+        loadProject(projectId);
+      }, 1000);
       
       // Remove notification after 5 seconds
       setTimeout(() => {
@@ -96,7 +97,7 @@ const ProjectDetail = () => {
         }
       }, 5000);
     }
-  }, [currentProject?.status]);
+  }, [currentProject?.status, projectId, loadProject]);
 
   const toggleFileExpansion = (filePath) => {
     const newExpanded = new Set(expandedFiles);
