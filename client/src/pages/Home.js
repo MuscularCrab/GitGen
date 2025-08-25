@@ -117,10 +117,10 @@ const Home = () => {
             Generate Documentation
             <span className="text-primary-600"> Automatically</span>
           </h1>
-                     <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
-             Transform your Git repositories into beautiful, comprehensive documentation 
-             with just a few clicks. Generate brand new README files automatically based on your code analysis.
-           </p>
+          <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
+            Transform your Git repositories into beautiful, comprehensive documentation 
+            with just a few clicks. Generate brand new README files automatically based on your code analysis.
+          </p>
           
           {/* CTA Buttons */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -229,39 +229,38 @@ const Home = () => {
               No manual configuration required - just paste and generate!
             </div>
           </div>
-                 </div>
+        </div>
 
-         {/* AI Status Display */}
-         {aiConfig && (
-           <div className="mt-8 p-4 bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg">
-             <div className="flex items-center space-x-2 text-purple-800 mb-2">
-               <span className="text-sm font-medium">
-                 {aiConfig.aiEnabled ? '🤖 AI-Powered Generation' : '⚠️ AI Generation Disabled'}
-               </span>
-             </div>
-             <div className="text-sm text-purple-700">
-               {aiConfig.aiEnabled ? (
-                 <div>
-                   <p>✅ Using Gemini AI for intelligent README generation</p>
-                   <p className="text-xs mt-1">Model: {aiConfig.model} | Temperature: {aiConfig.temperature}</p>
-                 </div>
-               ) : (
-                 <div>
-                   <p>Using template-based generation. Add GEMINI_API_KEY to enable AI.</p>
-                   <a 
-                     href="https://makersuite.google.com/app/apikey" 
-                     target="_blank" 
-                     rel="noopener noreferrer"
-                     className="text-purple-600 hover:text-purple-800 underline text-xs"
-                   >
-                     Get Gemini API Key
-                   </a>
-                 </div>
-               )}
-             </div>
-           </div>
-         )}
-       </section>
+        {/* AI Status Display */}
+        {aiConfig && (
+          <div className="mt-8 p-4 bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg">
+            <div className="flex items-center space-x-2 text-purple-800 mb-2">
+              <span className="text-sm font-medium">
+                {aiConfig.aiEnabled ? '🤖 AI-Powered Generation' : '⚠️ AI Generation Disabled'}
+              </span>
+            </div>
+            <div className="text-sm text-purple-700">
+              {aiConfig.aiEnabled ? (
+                <div>
+                  <p>✅ Using Gemini AI for intelligent README generation</p>
+                  <p className="text-xs mt-1">Model: {aiConfig.model} | Temperature: {aiConfig.temperature}</p>
+                </div>
+              ) : (
+                <div>
+                  <p>Using template-based generation. Add GEMINI_API_KEY to enable AI.</p>
+                  <a 
+                    href="https://makersuite.google.com/app/apikey" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-purple-600 hover:text-purple-800 underline text-xs"
+                  >
+                    Get Gemini API Key
+                  </a>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </section>
 
       {/* Features Section */}
