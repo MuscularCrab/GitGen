@@ -570,7 +570,27 @@ const ProjectDetail = () => {
               <div className="text-center py-8 text-gray-500">
                 <BookOpen className="w-16 h-16 mx-auto mb-4 text-gray-300" />
                 <p>Generated README not available yet</p>
-                <p className="text-sm mt-2">This will appear once the project analysis is complete.</p>
+                <p className="text-sm mt-2">
+                  {currentProject.status === 'processing' 
+                    ? 'This will appear once the project analysis is complete. Please wait for processing to finish.'
+                    : currentProject.status === 'failed'
+                    ? 'Documentation generation failed. Please try regenerating the project.'
+                    : 'This will appear once the project analysis is complete.'}
+                </p>
+                {currentProject.status === 'processing' && (
+                  <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <p className="text-sm text-blue-800">
+                      <strong>Status:</strong> {currentProject.status} - The project is currently being processed.
+                    </p>
+                  </div>
+                )}
+                {currentProject.status === 'failed' && (
+                  <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                    <p className="text-sm text-red-800">
+                      <strong>Error:</strong> {currentProject.error || 'Unknown error occurred during processing.'}
+                    </p>
+                  </div>
+                )}
               </div>
             )}
           </div>

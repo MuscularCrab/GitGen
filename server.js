@@ -246,6 +246,39 @@ app.post('/api/projects', async (req, res) => {
       return res.status(400).json({ error: 'Invalid repository URL format. Use HTTPS or SSH format.' });
     }
 
+    // Check if a project with this repository URL already exists
+    const existingProject = Array.from(projects.values()).find(p => p.repoUrl === repoUrl);
+    if (existingProject) {
+      console.log('Project with this repository already exists:', existingProject.id);
+      
+      // If the existing project is completed, return it immediately
+      if (existingProject.status === 'completed') {
+        return res.json({ 
+          projectId: existingProject.id, 
+          status: 'completed', 
+          mode: existingProject.mode || 'v2',
+          message: 'Project already exists and is completed'
+        });
+      }
+      
+      // If the existing project is processing, return it
+      if (existingProject.status === 'processing') {
+        return res.json({ 
+          projectId: existingProject.id, 
+          status: 'processing', 
+          mode: existingProject.mode || 'v2',
+          message: 'Project already exists and is being processed'
+        });
+      }
+      
+      // If the existing project failed, we can regenerate it
+      if (existingProject.status === 'failed') {
+        console.log('Regenerating failed project:', existingProject.id);
+        // Remove the old project and continue with creation
+        projects.delete(existingProject.id);
+      }
+    }
+
     const projectId = uuidv4();
     const project = {
       id: projectId,
@@ -356,6 +389,12 @@ app.get('/api/projects/:projectId/progress', (req, res) => {
   const { projectId } = req.params;
   const project = projects.get(projectId);
   
+  console.log(`Progress request for project ${projectId}:`, {
+    projectExists: !!project,
+    projectStatus: project?.status,
+    projectProgress: project?.progress
+  });
+  
   if (!project) {
     return res.status(404).json({ error: 'Project not found' });
   }
@@ -367,7 +406,8 @@ app.get('/api/projects/:projectId/progress', (req, res) => {
       totalSteps: 6,
       message: 'Progress not available',
       percentage: 0,
-      estimatedTime: null
+      estimatedTime: null,
+      status: project.status || 'unknown'
     });
   }
   
@@ -379,14 +419,39 @@ app.get('/api/projects/:projectId/progress', (req, res) => {
     const elapsed = Date.now() - project.progress.startTime;
     const avgTimePerStep = elapsed / project.progress.step;
     const remainingSteps = project.progress.totalSteps - project.progress.step;
-    estimatedTime = Math.round((avgTimePerStep * remainingSteps) / 1000);
+    
+    // Use a more conservative estimate and cap the ETA to prevent runaway values
+    const rawETA = Math.round((avgTimePerStep * remainingSteps) / 1000);
+    
+    // Cap ETA at reasonable values and use rolling average if available
+    if (project.progress.lastETA && project.progress.step > 1) {
+      // Use rolling average with previous ETA to smooth out fluctuations
+      const smoothingFactor = 0.7; // 70% weight to previous, 30% to current
+      estimatedTime = Math.round(
+        (project.progress.lastETA * smoothingFactor) + (rawETA * (1 - smoothingFactor))
+      );
+    } else {
+      estimatedTime = rawETA;
+    }
+    
+    // Cap ETA at reasonable maximum values
+    if (estimatedTime > 300) estimatedTime = 300; // Max 5 minutes
+    if (estimatedTime < 0) estimatedTime = 0;
+    
+    // Store current ETA for next calculation
+    project.progress.lastETA = estimatedTime;
   }
   
-  res.json({
+  const response = {
     ...project.progress,
     percentage,
-    estimatedTime
-  });
+    estimatedTime,
+    status: project.status || 'processing'
+  };
+  
+  console.log(`Progress response for project ${projectId}:`, response);
+  
+  res.json(response);
 });
 
 // Download generated README

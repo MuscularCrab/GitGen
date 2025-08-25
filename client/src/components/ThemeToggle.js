@@ -11,10 +11,12 @@ const ThemeToggle = () => {
     if (savedTheme === 'light') {
       setIsDark(false);
       document.documentElement.setAttribute('data-theme', 'light');
+      document.documentElement.classList.remove('dark');
     } else {
       // Default to dark mode
       setIsDark(true);
       document.documentElement.setAttribute('data-theme', 'dark');
+      document.documentElement.classList.add('dark');
       localStorage.setItem('theme', 'dark');
     }
   }, []);
@@ -25,9 +27,11 @@ const ThemeToggle = () => {
     
     if (newTheme) {
       document.documentElement.setAttribute('data-theme', 'dark');
+      document.documentElement.classList.add('dark');
       localStorage.setItem('theme', 'dark');
     } else {
       document.documentElement.setAttribute('data-theme', 'light');
+      document.documentElement.classList.remove('dark');
       localStorage.setItem('theme', 'light');
     }
   };

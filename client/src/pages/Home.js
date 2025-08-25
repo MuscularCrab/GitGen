@@ -66,9 +66,35 @@ const Home = () => {
         mode: formData.mode
       });
 
-      if (project && project.projectId) {
-        setFormData(prev => ({ ...prev, submitted: true, success: true }));
-        monitorProjectStatus(project.projectId);
+      console.log('Project created:', project);
+
+      // Handle different possible response structures
+      const projectId = project?.projectId || project?.id || project?.project?.id;
+      
+      if (projectId) {
+        console.log('Starting to monitor project:', projectId);
+        
+        // Check if the project is already completed
+        if (project.status === 'completed') {
+          console.log('Project already completed, redirecting immediately...');
+          setFormData(prev => ({ ...prev, submitted: true, success: true }));
+          // Redirect immediately for completed projects
+          setTimeout(() => {
+            try {
+              navigate(`/projects/${projectId}`);
+            } catch (navError) {
+              console.error('React Router navigation failed, using fallback:', navError);
+              window.location.href = `/projects/${projectId}`;
+            }
+          }, 100);
+        } else {
+          // Start monitoring for processing projects
+          setFormData(prev => ({ ...prev, submitted: true, success: true }));
+          monitorProjectStatus(projectId);
+        }
+      } else {
+        console.error('Invalid project response - no projectId found:', project);
+        alert('Invalid project response. Please try again.');
       }
     } catch (error) {
       console.error('Error creating project:', error);
@@ -78,23 +104,49 @@ const Home = () => {
 
   const monitorProjectStatus = async (projectId) => {
     try {
+      console.log(`Monitoring project ${projectId}...`);
       const response = await fetch(`/api/projects/${projectId}/progress`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
       const project = await response.json();
+      console.log('Project progress update:', project);
+      console.log('Project status:', project.status);
+      console.log('Project step:', project.step);
+      console.log('Project percentage:', project.percentage);
 
       if (project.status === 'completed' || project.status === 'failed') {
-        console.log('AI generation completed, redirecting to project...');
-        window.location.href = `/projects/${projectId}`;
+        console.log('AI generation completed, redirecting to project...', project.status);
+        if (project.status === 'completed') {
+          console.log('Redirecting to project detail page...');
+          // Add a small delay to ensure state updates are processed
+          setTimeout(() => {
+            try {
+              navigate(`/projects/${projectId}`);
+            } catch (navError) {
+              console.error('React Router navigation failed, using fallback:', navError);
+              window.location.href = `/projects/${projectId}`;
+            }
+          }, 100);
+        } else {
+          alert(`Project failed: ${project.message || 'Unknown error'}`);
+        }
       } else {
+        console.log('Project still processing, continuing to monitor...');
         setProcessingProgress(project);
+        // Continue monitoring every 2 seconds
         setTimeout(() => monitorProjectStatus(projectId), 2000);
       }
     } catch (error) {
       console.error('Error monitoring project status:', error);
+      // Continue monitoring even if there's an error
+      setTimeout(() => monitorProjectStatus(projectId), 5000);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
+    <div className="min-h-screen home-background-light dark:home-background-dark">
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto">
           {/* Header */}
@@ -267,10 +319,14 @@ const Home = () => {
                   </div>
                   <div className="ml-3">
                     <h3 className="text-sm font-medium text-green-800 dark:text-green-200">
-                      Documentation generation started!
+                      {processingProgress && processingProgress.status === 'completed' 
+                        ? 'Documentation already generated!' 
+                        : 'Documentation generation started!'}
                     </h3>
                     <p className="mt-1 text-sm text-green-700 dark:text-green-300">
-                      We're analyzing your repository and generating comprehensive documentation. This may take a few minutes.
+                      {processingProgress && processingProgress.status === 'completed'
+                        ? 'This project has already been processed. Redirecting to view the generated documentation...'
+                        : 'We\'re analyzing your repository and generating comprehensive documentation. This may take a few minutes.'}
                     </p>
                   </div>
                 </div>

@@ -364,6 +364,93 @@
     --tw-gradient-to: var(--bg-card);
   }
   
+  /* Background gradient overrides for Home page */
+  [data-theme="dark"] .from-blue-50 {
+    --tw-gradient-from: var(--bg-secondary);
+  }
+  
+  [data-theme="dark"] .to-indigo-100 {
+    --tw-gradient-to: var(--bg-card);
+  }
+  
+  [data-theme="dark"] .from-gray-900 {
+    --tw-gradient-from: var(--bg-primary);
+  }
+  
+  [data-theme="dark"] .to-gray-800 {
+    --tw-gradient-to: var(--bg-secondary);
+  }
+  
+  /* Alternative approach using Tailwind's dark: prefix */
+  .dark .from-blue-50 {
+    --tw-gradient-from: #1e293b !important;
+  }
+  
+  .dark .to-indigo-100 {
+    --tw-gradient-to: #334155 !important;
+  }
+  
+  .dark .from-gray-900 {
+    --tw-gradient-from: #0f172a !important;
+  }
+  
+  .dark .to-gray-800 {
+    --tw-gradient-to: #1e293b !important;
+  }
+  
+  /* Ensure light mode gradients work properly */
+  .from-blue-50 {
+    --tw-gradient-from: #eff6ff !important;
+  }
+  
+  .to-indigo-100 {
+    --tw-gradient-to: #e0e7ff !important;
+  }
+  
+  /* Direct background override for the Home page gradient */
+  .dark .bg-gradient-to-br.from-blue-50.to-indigo-100 {
+    background: linear-gradient(to bottom right, #0f172a, #1e293b) !important;
+  }
+  
+  .bg-gradient-to-br.from-blue-50.to-indigo-100 {
+    background: linear-gradient(to bottom right, #eff6ff, #e0e7ff) !important;
+  }
+  
+  /* More specific override for the exact Home page classes */
+  .dark .min-h-screen.bg-gradient-to-br.from-blue-50.to-indigo-100.dark\\:from-gray-900.dark\\:to-gray-800 {
+    background: linear-gradient(to bottom right, #0f172a, #1e293b) !important;
+  }
+  
+  .min-h-screen.bg-gradient-to-br.from-blue-50.to-indigo-100.dark\\:from-gray-900.dark\\:to-gray-800 {
+    background: linear-gradient(to bottom right, #eff6ff, #e0e7ff) !important;
+  }
+  
+  /* Simple approach: override the specific gradient classes */
+  .dark .from-blue-50 {
+    background: #1e293b !important;
+  }
+  
+  .dark .to-indigo-100 {
+    background: #334155 !important;
+  }
+  
+  .dark .from-gray-900 {
+    background: #0f172a !important;
+  }
+  
+  .dark .to-gray-800 {
+    background: #1e293b !important;
+  }
+  
+  /* Custom Home page background classes */
+  .home-background-light {
+    background: linear-gradient(to bottom right, #eff6ff, #e0e7ff) !important;
+  }
+  
+  .home-background-dark {
+    background: linear-gradient(to bottom right, #0f172a, #1e293b) !important;
+  }
+  
   [data-theme="dark"] .border-purple-200 {
     border-color: var(--border-color);
   }

@@ -11,7 +11,9 @@ import {
   Calendar,
   FileText,
   Folder,
-  Download
+  Download,
+  AlertTriangle,
+  TestTube
 } from 'lucide-react';
 import Loader from '../components/Loader';
 
@@ -201,81 +203,20 @@ const Projects = () => {
          </div>
        )}
 
-       {/* Debug Info - Always show for troubleshooting */}
-       <div className="mt-8 p-4 bg-gray-100 rounded-lg text-xs text-gray-600">
-         <p><strong>Debug Info:</strong></p>
-         <p>Loading: {loading.toString()}</p>
-         <p>Projects Count: {projects.length}</p>
-         <p>Error: {error || 'None'}</p>
-         <p>API Base URL: {window.location.origin}</p>
-         <p>Projects Data: {JSON.stringify(projects, null, 2)}</p>
-         <p>Raw Projects: {JSON.stringify(projects, null, 2)}</p>
-         <p>Filtered Projects: {JSON.stringify(projects.filter(p => p && p.id && p.repoUrl), null, 2)}</p>
-          
-          {/* Debug Buttons */}
-          <div className="mt-4 space-y-2">
-            <button 
-              onClick={async () => {
-                try {
-                  const response = await fetch(`${window.location.origin}/api/debug/projects`);
-                  const data = await response.json();
-                  console.log('Debug projects response:', data);
-                  alert(`Debug info logged to console. Total projects: ${data.totalProjects}`);
-                } catch (error) {
-                  console.error('Debug endpoint error:', error);
-                  alert('Debug endpoint error: ' + error.message);
-                }
-              }}
-              className="btn-secondary text-xs px-2 py-1"
-            >
-              Debug Projects (Backend)
-            </button>
-            
-            <button 
-              onClick={async () => {
-                try {
-                  const response = await fetch(`${window.location.origin}/api/test`);
-                  const data = await response.json();
-                  console.log('Test endpoint response:', data);
-                  alert(`Backend test: ${data.message}. Projects in memory: ${data.projectsCount}`);
-                } catch (error) {
-                  console.error('Test endpoint error:', error);
-                  alert('Test endpoint error: ' + error.message);
-                }
-              }}
-              className="btn-secondary text-xs px-2 py-1 ml-2"
-            >
-              Test Backend
-            </button>
-            
-            <button 
-              onClick={async () => {
-                try {
-                  const response = await fetch(`${window.location.origin}/api/test-create-project`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                      repoUrl: 'https://github.com/test/test-repo',
-                      projectName: 'Test Project',
-                      description: 'Test project for debugging'
-                    })
-                  });
-                  const data = await response.json();
-                  console.log('Test create project response:', data);
-                  alert(`Test project created: ${data.isValid ? 'Valid' : 'Invalid'}. Check console for details.`);
-                  // Refresh projects after creating test project
-                  setTimeout(() => window.location.reload(), 1000);
-                } catch (error) {
-                  console.error('Test create project error:', error);
-                  alert('Test create project error: ' + error.message);
-                }
-              }}
-              className="btn-secondary text-xs px-2 py-1 ml-2"
-            >
-              Create Test Project
-            </button>
-          </div>
+      {/* Debug Info - Moved to Debug page */}
+      <div className="mt-8 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+        <div className="flex items-center space-x-2 mb-2">
+          <AlertTriangle className="w-5 h-5 text-blue-600" />
+          <p className="text-sm font-medium text-blue-800">Need to debug?</p>
         </div>
+        <p className="text-sm text-blue-700 mb-3">
+          All debug information and testing tools have been moved to the dedicated Debug page for better organization.
+        </p>
+        <Link to="/debug" className="btn-secondary text-sm inline-flex items-center space-x-2">
+          <TestTube className="w-4 h-4" />
+          <span>Go to Debug Page</span>
+        </Link>
+      </div>
 
                     {/* Projects Grid */}
        {!loading && (!projects || projects.length === 0 || projects.filter(p => p && p.id && p.repoUrl).length === 0) ? (
