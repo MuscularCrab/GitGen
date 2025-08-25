@@ -70,12 +70,11 @@ npm start
 ### 1. Create a New Project
 - Navigate to the home page
 - Enter your Git repository URL (supports GitHub, GitLab, Bitbucket, etc.)
-- Provide a project name and optional description
-- Click "Generate Documentation"
+- Click "Generate Documentation" - the AI will analyze everything automatically
 
 ### 2. Monitor Progress
 - Real-time status updates during processing
-- Progress indicators for repository analysis
+- Progress indicators for repository analysis (Clone → Analyze → Scan → Process → Generate → Complete)
 - Automatic polling for completion status
 
 ### 3. View Documentation
@@ -83,11 +82,26 @@ npm start
 - **File Structure**: Interactive repository tree
 - **File Details**: Code analysis with functions and classes
 - **README**: Processed markdown content
+- **Generated README**: AI-powered README generation
 
 ### 4. Export & Share
 - Download documentation in various formats
 - Share with team members
 - Embed in other documentation systems
+
+## 🧪 Debug & Testing
+
+Access the debug page at `/debug` to test API connections and backend functionality:
+
+- **API Connection Test**: Verify backend connectivity
+- **Health Check**: Test backend health endpoints
+- **Git Functionality**: Test repository operations
+- **Project Creation**: Test project workflow
+- **System Information**: View current configuration
+
+**Access URL**: `http://localhost:3000/debug` (or your deployed domain + `/debug`)
+
+> **Note**: The debug page includes comprehensive testing tools for troubleshooting API issues, Git operations, and project creation workflows. Use this page to diagnose any connectivity or functionality problems.
 
 ## 🔧 Configuration
 
@@ -114,7 +128,7 @@ gitgen/
 ├── client/                # React frontend application
 │   ├── src/
 │   │   ├── components/    # Reusable UI components
-│   │   ├── pages/         # Page components
+│   │   ├── pages/         # Page components (Home, Projects, ProjectDetail, Debug)
 │   │   ├── context/       # React context for state management
 │   │   └── App.js         # Main application component
 │   ├── public/            # Static assets

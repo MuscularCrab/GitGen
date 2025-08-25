@@ -45,11 +45,25 @@ export const ProjectProvider = ({ children }) => {
 
   // Load projects on mount
   useEffect(() => {
-    loadProjects().catch(error => {
-      console.error('Failed to load projects on mount:', error);
-      // Don't let the error crash the app
-    });
-  }, []);
+    let mounted = true;
+    
+    const initializeProjects = async () => {
+      try {
+        if (mounted) {
+          await loadProjects();
+        }
+      } catch (error) {
+        console.error('Failed to load projects on mount:', error);
+        // Don't let the error crash the app
+      }
+    };
+    
+    initializeProjects();
+    
+    return () => {
+      mounted = false;
+    };
+  }, []); // Empty dependency array since loadProjects is stable
 
   // Global failsafe: reset loading state if it gets stuck
   useEffect(() => {
@@ -68,6 +82,16 @@ export const ProjectProvider = ({ children }) => {
     try {
       console.log('Loading projects...');
       dispatch({ type: 'SET_LOADING', payload: true });
+      dispatch({ type: 'SET_ERROR', payload: null }); // Clear any previous errors
+      
+      // First check if backend is healthy
+      try {
+        await axios.get(`${apiBaseUrl}/api/health`, { timeout: 5000 });
+        console.log('Backend health check passed');
+      } catch (healthError) {
+        console.warn('Backend health check failed:', healthError);
+        // Continue anyway, the projects endpoint might still work
+      }
       
       // Add timeout to prevent hanging
       const controller = new AbortController();
@@ -80,14 +104,20 @@ export const ProjectProvider = ({ children }) => {
       
       clearTimeout(timeoutId);
       console.log('Projects loaded:', response.data);
-      dispatch({ type: 'SET_PROJECTS', payload: response.data });
+      dispatch({ type: 'SET_PROJECTS', payload: response.data || [] });
     } catch (error) {
       console.error('Error loading projects:', error);
       if (error.name === 'AbortError') {
         dispatch({ type: 'SET_ERROR', payload: 'Request timed out. Please check if the backend is running.' });
+      } else if (error.response?.status === 404) {
+        dispatch({ type: 'SET_ERROR', payload: 'Projects endpoint not found. Please check if the backend is running.' });
+      } else if (error.code === 'NETWORK_ERROR') {
+        dispatch({ type: 'SET_ERROR', payload: 'Network error. Please check your connection and if the backend is running.' });
       } else {
-        dispatch({ type: 'SET_ERROR', payload: 'Failed to load projects' });
+        dispatch({ type: 'SET_ERROR', payload: `Failed to load projects: ${error.message}` });
       }
+      // Set empty projects array on error to prevent blank page
+      dispatch({ type: 'SET_PROJECTS', payload: [] });
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false });
     }

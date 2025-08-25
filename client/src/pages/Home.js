@@ -17,14 +17,20 @@ import {
 const Home = () => {
   const { createProject, loading, error, clearError } = useProjects();
   const [formData, setFormData] = useState({
-    repoUrl: '',
-    projectName: '',
-    description: ''
+    repoUrl: ''
   });
 
   // Add AI status display
   const [aiConfig, setAiConfig] = useState(null);
   const [aiLoading, setAiLoading] = useState(true);
+
+  // Add progress tracking
+  const [progress, setProgress] = useState({
+    isProcessing: false,
+    percentage: 0,
+    stage: '',
+    message: ''
+  });
 
   useEffect(() => {
     const checkAIStatus = async () => {
@@ -43,20 +49,71 @@ const Home = () => {
     checkAIStatus();
   }, []);
 
+  // Cleanup progress intervals on unmount
+  useEffect(() => {
+    return () => {
+      // Cleanup any running progress intervals
+      if (progress.isProcessing) {
+        setProgress(prev => ({ ...prev, isProcessing: false }));
+      }
+    };
+  }, [progress.isProcessing]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     clearError();
     
-    console.log('Form submitted with data:', formData);
+    // Extract project name from GitHub URL
+    const urlParts = formData.repoUrl.split('/');
+    const projectName = urlParts[urlParts.length - 1] || 'Project';
+    
+    const projectData = {
+      repoUrl: formData.repoUrl,
+      projectName: projectName,
+      description: '' // AI will generate this from code analysis
+    };
+    
+    console.log('Form submitted with data:', projectData);
+    
+    // Start progress tracking
+    setProgress({
+      isProcessing: true,
+      percentage: 0,
+      stage: 'Initializing',
+      message: 'Starting repository analysis...'
+    });
+    
+    // Start progress simulation
+    const progressInterval = simulateProgress();
     
     try {
       console.log('Calling createProject...');
-      const projectId = await createProject(formData);
+      const projectId = await createProject(projectData);
       console.log('Project created successfully with ID:', projectId);
+      
+      // Clear progress interval and update to completion
+      clearInterval(progressInterval);
+      setProgress({
+        isProcessing: true,
+        percentage: 100,
+        stage: 'Complete',
+        message: 'Redirecting to project details...'
+      });
+      
       // Redirect to project detail page
-      window.location.href = `/projects/${projectId}`;
+      setTimeout(() => {
+        window.location.href = `/projects/${projectId}`;
+      }, 1000);
+      
     } catch (error) {
       console.error('Failed to create project:', error);
+      clearInterval(progressInterval);
+      setProgress({
+        isProcessing: false,
+        percentage: 0,
+        stage: 'Error',
+        message: 'Failed to process repository'
+      });
     }
   };
 
@@ -65,6 +122,33 @@ const Home = () => {
       ...formData,
       [e.target.name]: e.target.value
     });
+  };
+
+  // Simulate progress updates during processing
+  const simulateProgress = () => {
+    const stages = [
+      { percentage: 10, stage: 'Cloning', message: 'Cloning repository from GitHub...' },
+      { percentage: 25, stage: 'Analyzing', message: 'Analyzing repository structure...' },
+      { percentage: 40, stage: 'Scanning', message: 'Scanning source code files...' },
+      { percentage: 60, stage: 'Processing', message: 'Processing code patterns and functions...' },
+      { percentage: 80, stage: 'Generating', message: 'Generating README with AI...' },
+      { percentage: 95, stage: 'Finalizing', message: 'Finalizing documentation...' }
+    ];
+
+    let currentStage = 0;
+    const progressInterval = setInterval(() => {
+      if (currentStage < stages.length && progress.isProcessing) {
+        setProgress(prev => ({
+          ...prev,
+          ...stages[currentStage]
+        }));
+        currentStage++;
+      } else if (currentStage >= stages.length) {
+        clearInterval(progressInterval);
+      }
+    }, 2000); // Update every 2 seconds
+
+    return progressInterval;
   };
 
   const features = [
@@ -131,14 +215,14 @@ const Home = () => {
       {/* Project Creation Form */}
       <section className="max-w-2xl mx-auto">
         <div className="card">
-          <div className="text-center mb-8">
-            <h2 className="text-3xl font-bold text-gray-900 mb-2">
-              Start Your First Project
-            </h2>
-                         <p className="text-gray-600">
-               Enter your Git repository URL and we'll analyze your code to generate a brand new README file automatically.
-             </p>
-          </div>
+                     <div className="text-center mb-8">
+             <h2 className="text-3xl font-bold text-gray-900 mb-2">
+               Generate README from GitHub
+             </h2>
+                          <p className="text-gray-600">
+                Just paste your GitHub repository URL and we'll analyze the code to generate a professional README automatically.
+              </p>
+           </div>
 
           {error && (
             <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
@@ -149,176 +233,83 @@ const Home = () => {
             </div>
           )}
 
-          {/* Debug section */}
-          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-            <div className="flex items-center space-x-2 text-blue-800 mb-2">
-              <span className="text-sm font-medium">Debug: Test API Connection</span>
-            </div>
-            <div className="space-y-2">
-              <button
-                type="button"
-                onClick={async () => {
-                  try {
-                    console.log('Testing API connection...');
-                    const response = await fetch(`${apiBaseUrl}/api/test`);
-                    const data = await response.json();
-                    console.log('API test response:', data);
-                    alert(`API is working! Response: ${JSON.stringify(data)}`);
-                  } catch (error) {
-                    console.error('API test failed:', error);
-                    alert(`API test failed: ${error.message}`);
-                  }
-                }}
-                className="btn-secondary text-sm px-3 py-1 mr-2"
-              >
-                Test API
-              </button>
-                             <button
-                 type="button"
-                 onClick={async () => {
-                   try {
-                     console.log('Testing health endpoint...');
-                     const response = await fetch(`${apiBaseUrl}/api/health`);
-                     const data = await response.json();
-                     console.log('Health check response:', data);
-                     alert(`Health check passed! Response: ${JSON.stringify(data)}`);
-                   } catch (error) {
-                     console.error('Health check failed:', error);
-                     alert(`Health check failed: ${error.message}`);
-                   }
-                 }}
-                 className="btn-secondary text-sm px-3 py-1"
-               >
-                 Health Check
-               </button>
-               <button
-                 type="button"
-                 onClick={async () => {
-                   try {
-                     console.log('Testing Git functionality...');
-                     const response = await fetch(`${apiBaseUrl}/api/test-git`);
-                     const data = await response.json();
-                     console.log('Git test response:', data);
-                     alert(`Git test response: ${JSON.stringify(data)}`);
-                   } catch (error) {
-                     console.error('Git test failed:', error);
-                     alert(`Git test failed: ${error.message}`);
-                   }
-                 }}
-                 className="btn-secondary text-sm px-3 py-1"
-                                >
-                   Test Git
-                 </button>
-                 <button
-                   type="button"
-                   onClick={async () => {
-                     try {
-                       console.log('Testing project creation...');
-                       const testData = {
-                         repoUrl: 'https://github.com/test/test',
-                         projectName: 'Test Project',
-                         description: 'This is a test project'
-                       };
-                       const response = await fetch(`${apiBaseUrl}/api/test-project`, {
-                         method: 'POST',
-                         headers: { 'Content-Type': 'application/json' },
-                         body: JSON.stringify(testData)
-                       });
-                       const data = await response.json();
-                       console.log('Test project response:', data);
-                       alert(`Test project created! Response: ${JSON.stringify(data)}`);
-                     } catch (error) {
-                       console.error('Test project creation failed:', error);
-                       alert(`Test project creation failed: ${error.message}`);
-                     }
-                   }}
-                   className="btn-secondary text-sm px-3 py-1"
-                 >
-                   Test Project Creation
-                 </button>
-                 <button
-                   type="button"
-                   onClick={() => {
-                     console.log('Emergency stop: resetting loading state');
-                     // Force reset the loading state
-                     window.location.reload();
-                   }}
-                   className="btn-secondary text-sm px-3 py-1 bg-red-100 text-red-800 border-red-300 hover:bg-red-200"
-                 >
-                   Emergency Stop
-                 </button>
-               </div>
+          
+
+                     <form onSubmit={handleSubmit} className="space-y-6">
+             <div>
+               <label htmlFor="repoUrl" className="block text-sm font-medium text-gray-700 mb-2">
+                 GitHub Repository URL *
+               </label>
+               <input
+                 type="url"
+                 id="repoUrl"
+                 name="repoUrl"
+                 value={formData.repoUrl}
+                 onChange={handleInputChange}
+                 placeholder="https://github.com/username/repository"
+                 className="input-field"
+                 required
+               />
+               <p className="mt-1 text-sm text-gray-500">
+                 Just paste the GitHub URL - we'll analyze the code and generate everything else automatically
+               </p>
              </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div>
-              <label htmlFor="repoUrl" className="block text-sm font-medium text-gray-700 mb-2">
-                Git Repository URL *
-              </label>
-              <input
-                type="url"
-                id="repoUrl"
-                name="repoUrl"
-                value={formData.repoUrl}
-                onChange={handleInputChange}
-                placeholder="https://github.com/username/repository"
-                className="input-field"
-                required
-              />
-              <p className="mt-1 text-sm text-gray-500">
-                Supports GitHub, GitLab, Bitbucket, and other Git hosting services
-              </p>
-            </div>
+                         <button
+               type="submit"
+               disabled={loading || progress.isProcessing}
+               className="btn-primary w-full py-3 text-lg disabled:opacity-50 disabled:cursor-not-allowed"
+             >
+               {loading || progress.isProcessing ? (
+                 <div className="flex items-center justify-center space-x-2">
+                   <Clock className="w-5 h-5 animate-spin" />
+                   <span>Processing...</span>
+                 </div>
+               ) : (
+                 <div className="flex items-center justify-center space-x-2">
+                   <BookOpen className="w-5 h-5" />
+                   <span>Generate Documentation</span>
+                 </div>
+               )}
+             </button>
+           </form>
 
-            <div>
-              <label htmlFor="projectName" className="block text-sm font-medium text-gray-700 mb-2">
-                Project Name *
-              </label>
-              <input
-                type="text"
-                id="projectName"
-                name="projectName"
-                value={formData.projectName}
-                onChange={handleInputChange}
-                placeholder="My Awesome Project"
-                className="input-field"
-                required
-              />
-            </div>
-
-            <div>
-              <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-2">
-                Description (Optional)
-              </label>
-              <textarea
-                id="description"
-                name="description"
-                value={formData.description}
-                onChange={handleInputChange}
-                placeholder="Brief description of your project..."
-                rows="3"
-                className="input-field"
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="btn-primary w-full py-3 text-lg disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? (
-                <div className="flex items-center justify-center space-x-2">
-                  <Clock className="w-5 h-5 animate-spin" />
-                  <span>Processing...</span>
-                </div>
-              ) : (
-                <div className="flex items-center justify-center space-x-2">
-                  <BookOpen className="w-5 h-5" />
-                  <span>Generate Documentation</span>
-                </div>
-              )}
-            </button>
-          </form>
+           {/* Progress Indicator */}
+           {progress.isProcessing && (
+             <div className="mt-6 p-6 bg-blue-50 border border-blue-200 rounded-lg">
+               <div className="flex items-center justify-between mb-3">
+                 <h3 className="text-lg font-semibold text-blue-800">
+                   {progress.stage}
+                 </h3>
+                 <span className="text-sm font-medium text-blue-600">
+                   {progress.percentage}%
+                 </span>
+               </div>
+               
+               {/* Progress Bar */}
+               <div className="w-full bg-blue-200 rounded-full h-3 mb-3">
+                 <div 
+                   className="bg-blue-600 h-3 rounded-full transition-all duration-500 ease-out"
+                   style={{ width: `${progress.percentage}%` }}
+                 ></div>
+               </div>
+               
+               {/* Progress Message */}
+               <p className="text-sm text-blue-700 mb-2">
+                 {progress.message}
+               </p>
+               
+               {/* Progress Stages */}
+               <div className="flex justify-between text-xs text-blue-600">
+                 <span className={progress.percentage >= 10 ? 'font-semibold' : ''}>Clone</span>
+                 <span className={progress.percentage >= 25 ? 'font-semibold' : ''}>Analyze</span>
+                 <span className={progress.percentage >= 40 ? 'font-semibold' : ''}>Scan</span>
+                 <span className={progress.percentage >= 60 ? 'font-semibold' : ''}>Process</span>
+                 <span className={progress.percentage >= 80 ? 'font-semibold' : ''}>Generate</span>
+                 <span className={progress.percentage >= 95 ? 'font-semibold' : ''}>Complete</span>
+               </div>
+             </div>
+           )}
 
           {/* AI Status Display */}
           {aiConfig && (

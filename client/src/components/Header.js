@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { BookOpen, GitBranch, Menu, X } from 'lucide-react';
+import { BookOpen, GitBranch, Menu, X, TestTube } from 'lucide-react';
 import { useState } from 'react';
 
 const Header = () => {
@@ -8,8 +8,10 @@ const Header = () => {
   const location = useLocation();
 
   const navigation = [
-    { name: 'Home', href: '/', icon: BookOpen },
-    { name: 'Projects', href: '/projects', icon: GitBranch },
+            { name: 'Home', href: '/', icon: BookOpen },
+        { name: 'Projects', href: '/projects', icon: GitBranch },
+        { name: 'Debug', href: '/debug', icon: TestTube },
+        { name: 'Markdown Demo', href: '/markdown-demo', icon: FileText },
   ];
 
   const isActive = (path) => location.pathname === path;

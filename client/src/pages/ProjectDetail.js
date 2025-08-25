@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useProjects } from '../context/ProjectContext';
+import MarkdownRenderer from '../components/MarkdownRenderer';
 import { 
   BookOpen, 
   GitBranch, 
@@ -345,10 +346,7 @@ const ProjectDetail = () => {
                     <strong>Path:</strong> {currentProject.documentation.readme.path}
                   </p>
                 </div>
-                <div 
-                  className="prose max-w-none"
-                  dangerouslySetInnerHTML={{ __html: currentProject.documentation.readme.content }}
-                />
+                <MarkdownRenderer content={currentProject.documentation.readme.content} />
               </div>
             ) : (
               <div className="text-center py-8 text-gray-500">
@@ -382,10 +380,9 @@ const ProjectDetail = () => {
                     <strong>✨ New README Generated!</strong> This is a brand new README file created specifically for your project based on code analysis.
                   </p>
                 </div>
-                <div 
-                  className="prose max-w-none border rounded-lg p-6 bg-gray-50"
-                  dangerouslySetInnerHTML={{ __html: currentProject.documentation.generatedReadme.markdown }}
-                />
+                <div className="border rounded-lg p-6 bg-gray-50">
+                  <MarkdownRenderer content={currentProject.documentation.generatedReadme.markdown} />
+                </div>
               </div>
             ) : (
               <div className="text-center py-8 text-gray-500">

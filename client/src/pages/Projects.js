@@ -18,8 +18,13 @@ const Projects = () => {
   const { projects, loading, error, loadProjects, clearError } = useProjects();
 
   useEffect(() => {
+    // Only load projects once when component mounts
+    console.log('Projects component mounted, loading projects...');
     loadProjects();
-  }, [loadProjects]);
+  }, []); // Remove loadProjects from dependencies to prevent infinite re-renders
+
+  // Debug logging
+  console.log('Projects component render:', { loading, error, projectsCount: projects.length });
 
   const getStatusIcon = (status) => {
     switch (status) {
@@ -78,10 +83,21 @@ const Projects = () => {
           <Clock className="w-12 h-12 text-primary-600 animate-spin mx-auto mb-4" />
           <p className="text-gray-600">Loading projects...</p>
           <p className="text-sm text-gray-500 mt-2">This may take a moment...</p>
+          <button
+            onClick={() => {
+              clearError();
+              loadProjects();
+            }}
+            className="btn-secondary mt-4"
+          >
+            Retry Loading
+          </button>
         </div>
       </div>
     );
   }
+
+
 
   return (
     <div className="space-y-8">
@@ -122,21 +138,33 @@ const Projects = () => {
               <AlertCircle className="w-5 h-5" />
               <span>{error}</span>
             </div>
-            <button
-              onClick={() => {
-                clearError();
-                loadProjects();
-              }}
-              className="btn-secondary text-sm px-3 py-1"
-            >
-              Retry
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  clearError();
+                  loadProjects();
+                }}
+                className="btn-secondary text-sm px-3 py-1"
+              >
+                Retry
+              </button>
+              <button
+                onClick={() => {
+                  clearError();
+                  // Force reload the page as a last resort
+                  window.location.reload();
+                }}
+                className="btn-secondary text-sm px-3 py-1 bg-red-100 text-red-800 border-red-300 hover:bg-red-200"
+              >
+                Reload Page
+              </button>
+            </div>
           </div>
         </div>
       )}
 
       {/* Projects Grid */}
-      {projects.length === 0 ? (
+      {!loading && projects.length === 0 ? (
         <div className="card text-center py-16">
           <BookOpen className="w-16 h-16 text-gray-400 mx-auto mb-4" />
           <h3 className="text-xl font-semibold text-gray-900 mb-2">
@@ -150,7 +178,7 @@ const Projects = () => {
             Create Your First Project
           </Link>
         </div>
-      ) : (
+      ) : !loading && projects.length > 0 ? (
         <div className="grid gap-6">
           {projects.map((project) => (
             <div key={project.id} className="card hover:shadow-md transition-shadow duration-200">
@@ -277,6 +305,17 @@ const Projects = () => {
               )}
             </div>
           ))}
+        </div>
+      ) : null}
+      
+      {/* Debug Info - Remove in production */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="mt-8 p-4 bg-gray-100 rounded-lg text-xs text-gray-600">
+          <p><strong>Debug Info:</strong></p>
+          <p>Loading: {loading.toString()}</p>
+          <p>Projects Count: {projects.length}</p>
+          <p>Error: {error || 'None'}</p>
+          <p>API Base URL: {window.location.origin}</p>
         </div>
       )}
     </div>
