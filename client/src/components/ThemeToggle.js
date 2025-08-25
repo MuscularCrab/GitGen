@@ -5,19 +5,19 @@ const ThemeToggle = () => {
   const [isDark, setIsDark] = useState(false);
 
   useEffect(() => {
-    // Check for saved theme preference or default to dark mode
+    // Check for saved theme preference or default to light mode
     const savedTheme = localStorage.getItem('theme');
     
-    if (savedTheme === 'light') {
-      setIsDark(false);
-      document.documentElement.setAttribute('data-theme', 'light');
-      document.documentElement.classList.remove('dark');
-    } else {
-      // Default to dark mode
+    if (savedTheme === 'dark') {
       setIsDark(true);
       document.documentElement.setAttribute('data-theme', 'dark');
       document.documentElement.classList.add('dark');
-      localStorage.setItem('theme', 'dark');
+    } else {
+      // Default to light mode
+      setIsDark(false);
+      document.documentElement.setAttribute('data-theme', 'light');
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
     }
   }, []);
 
