@@ -6,7 +6,7 @@ node_modules/
 client/build/
 dist/
 
-# Environment variables
+# Environment variables (allow .env for development)
 .env
 .env.local
 .env.development.local

@@ -10,6 +10,32 @@ const multer = require('multer');
 const axios = require('axios');
 const cheerio = require('cheerio');
 
+// Conditional AI loading - only load if package is available
+let geminiAI = null;
+let AI_CONFIG = null;
+
+try {
+  // Try to load Gemini AI package (optional dependency)
+  const { GoogleGenerativeAI } = require('@google/generative-ai');
+  require('dotenv').config();
+  
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (apiKey) {
+    geminiAI = new GoogleGenerativeAI(apiKey);
+    AI_CONFIG = {
+      model: process.env.GEMINI_MODEL || 'gemini-pro',
+      temperature: parseFloat(process.env.GEMINI_TEMPERATURE) || 0.7,
+      maxTokens: parseInt(process.env.GEMINI_MAX_TOKENS) || 4000
+    };
+    console.log('✅ Gemini AI initialized successfully');
+  } else {
+    console.log('⚠️  No Gemini API key found. AI generation will be disabled.');
+  }
+} catch (error) {
+  console.log('ℹ️  Gemini AI package not installed. Using template-based generation.');
+  console.log('   To enable AI: npm install @google/generative-ai dotenv');
+}
+
 const app = express();
 const PORT = process.env.PORT || 3030;
 
@@ -197,6 +223,26 @@ app.get('/api/projects/:projectId/readme', (req, res) => {
   res.setHeader('Content-Type', 'text/markdown');
   res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
   res.send(project.documentation.generatedReadme.raw);
+});
+
+// AI Configuration endpoint
+app.get('/api/ai-config', (req, res) => {
+  console.log('AI configuration endpoint called');
+  try {
+    const config = {
+      aiEnabled: !!geminiAI,
+      model: AI_CONFIG?.model || 'N/A',
+      temperature: AI_CONFIG?.temperature || 'N/A',
+      maxTokens: AI_CONFIG?.maxTokens || 'N/A',
+      hasApiKey: !!process.env.GEMINI_API_KEY,
+      packageInstalled: !!geminiAI
+    };
+    
+    res.json(config);
+  } catch (error) {
+    console.error('Error getting AI config:', error);
+    res.status(500).json({ error: 'Failed to get AI configuration' });
+  }
 });
 
 // Process repository and generate documentation
@@ -623,158 +669,26 @@ async function generateNewReadme(repoPath, documentation) {
 }
 
 // Generate README content based on analysis
-function generateReadmeContent(documentation, packageInfo, mainFile) {
+async function generateReadmeContent(documentation, packageInfo, mainFile) {
   const projectName = packageInfo?.name || 'Project';
   
-  // Generate intelligent description based on code analysis
-  const description = generateIntelligentDescription(documentation, packageInfo);
-  
-  const version = packageInfo?.version || '1.0.0';
-  const author = packageInfo?.author || 'Developer';
-  const license = packageInfo?.license || 'MIT';
-  
-  let readme = `# ${projectName}\n\n`;
-  readme += `${description}\n\n`;
-  
-  // Badges
-  readme += `![Version](https://img.shields.io/badge/version-${version}-blue.svg)\n`;
-  readme += `![License](https://img.shields.io/badge/license-${license}-green.svg)\n\n`;
-  
-  // Table of Contents
-  readme += `## Table of Contents\n\n`;
-  readme += `- [Installation](#installation)\n`;
-  readme += `- [Usage](#usage)\n`;
-  readme += `- [Features](#features)\n`;
-  readme += `- [API Reference](#api-reference)\n`;
-  readme += `- [Contributing](#contributing)\n`;
-  readme += `- [License](#license)\n\n`;
-  
-  // Installation
-  readme += `## Installation\n\n`;
-  const installCommands = generateInstallCommands(packageInfo, documentation);
-  installCommands.forEach(cmd => {
-    readme += `\`\`\`bash\n${cmd}\n\`\`\`\n\n`;
-  });
-  
-  // Usage
-  readme += `## Usage\n\n`;
-  const usageCommands = generateUsageCommands(packageInfo, mainFile, documentation);
-  usageCommands.forEach(cmd => {
-    readme += `\`\`\`bash\n${cmd}\n\`\`\`\n\n`;
-  });
-  
-  // Features
-  readme += `## Features\n\n`;
-  if (documentation.files.length > 0) {
-    const languages = Object.keys(documentation.summary.languages || {});
-    readme += `- **Multi-language support**: ${languages.join(', ')}\n`;
-    readme += `- **${documentation.summary.totalFiles} source files**\n`;
-    readme += `- **${documentation.summary.totalDirectories} directories**\n`;
-    
-    // Add intelligent feature detection
-    const features = detectProjectFeatures(documentation);
-    features.forEach(feature => {
-      readme += `- **${feature}\n`;
-    });
-  }
-  readme += `- Modern architecture\n`;
-  readme += `- Easy to use\n\n`;
-  
-  // Code Analysis
-  readme += `## Code Analysis\n\n`;
-  
-  // Analyze the codebase
-  const codeAnalysis = analyzeCodebase(documentation);
-  if (codeAnalysis.languages.length > 0) {
-    readme += `### Languages & Technologies\n\n`;
-    codeAnalysis.languages.forEach(lang => {
-      readme += `- **${lang.name}**: ${lang.description}\n`;
-    });
-    readme += `\n`;
-  }
-  
-  if (codeAnalysis.patterns.length > 0) {
-    readme += `### Design Patterns\n\n`;
-    codeAnalysis.patterns.forEach(pattern => {
-      readme += `- **${pattern.name}**: ${pattern.description}\n`;
-    });
-    readme += `\n`;
-  }
-  
-  // API Reference
-  if (documentation.files.some(f => f.functions && f.functions.length > 0)) {
-    readme += `## API Reference\n\n`;
-    readme += `### Functions\n\n`;
-    
-    const allFunctions = [];
-    documentation.files.forEach(file => {
-      if (file.functions) {
-        file.functions.forEach(func => {
-          allFunctions.push({ name: func, file: file.path });
-        });
+  // Try AI generation first, fallback to template-based generation
+  if (geminiAI) {
+    try {
+      console.log('🤖 Using AI to generate README...');
+      const aiReadme = await generateAIReadme(documentation, packageInfo, mainFile);
+      if (aiReadme) {
+        console.log('✅ AI README generation successful');
+        return aiReadme;
       }
-    });
-    
-    // Show first 10 functions
-    allFunctions.slice(0, 10).forEach(func => {
-      readme += `- \`${func.name}\` - Defined in \`${func.file}\`\n`;
-    });
-    
-    if (allFunctions.length > 10) {
-      readme += `- ... and ${allFunctions.length - 10} more functions\n`;
+    } catch (error) {
+      console.error('❌ AI generation failed, falling back to template:', error.message);
     }
-    readme += `\n`;
   }
   
-  // Project Structure
-  readme += `## Project Structure\n\n`;
-  
-  // Add intelligent structure description
-  const structureDescription = generateStructureDescription(documentation.structure);
-  if (structureDescription) {
-    readme += `${structureDescription}\n\n`;
-  }
-  
-  readme += `\`\`\`\n`;
-  const structureLines = [];
-  
-  function addStructureLines(structure, prefix = '') {
-    Object.entries(structure).forEach(([name, info]) => {
-      if (info.type === 'directory') {
-        structureLines.push(`${prefix}📁 ${name}/`);
-        if (info.children) {
-          addStructureLines(info.children, prefix + '  ');
-        }
-      } else {
-        structureLines.push(`${prefix}📄 ${name}`);
-      }
-    });
-  }
-  
-  addStructureLines(documentation.structure);
-  readme += structureLines.slice(0, 20).join('\n');
-  if (structureLines.length > 20) {
-    readme += `\n... and ${structureLines.length - 20} more files`;
-  }
-  readme += `\n\`\`\`\n\n`;
-  
-  // Contributing
-  readme += `## Contributing\n\n`;
-  readme += `1. Fork the project\n`;
-  readme += `2. Create your feature branch (\`git checkout -b feature/AmazingFeature\`)\n`;
-  readme += `3. Commit your changes (\`git commit -m 'Add some AmazingFeature'\`)\n`;
-  readme += `4. Push to the branch (\`git push origin feature/AmazingFeature\`)\n`;
-  readme += `5. Open a Pull Request\n\n`;
-  
-  // License
-  readme += `## License\n\n`;
-  readme += `This project is licensed under the ${license} License - see the [LICENSE](LICENSE) file for details.\n\n`;
-  
-  // Footer
-  readme += `---\n`;
-  readme += `Generated with ❤️ by GitGen\n`;
-  
-  return readme;
+  // Fallback to template-based generation
+  console.log('📝 Using template-based README generation...');
+  return generateTemplateReadme(documentation, packageInfo, mainFile);
 }
 
 // Generate intelligent description based on code analysis
@@ -1148,6 +1062,254 @@ function analyzeCodebase(documentation) {
   }
   
   return analysis;
+}
+
+// Generate AI-powered README using Gemini
+async function generateAIReadme(documentation, packageInfo, mainFile) {
+  if (!geminiAI) {
+    throw new Error('Gemini AI not initialized');
+  }
+
+  try {
+    const model = geminiAI.getGenerativeModel({ model: AI_CONFIG.model });
+    
+    // Prepare the prompt with project context
+    const prompt = buildAIPrompt(documentation, packageInfo, mainFile);
+    
+    console.log('🤖 Sending prompt to Gemini AI...');
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const aiGeneratedReadme = response.text();
+    
+    if (!aiGeneratedReadme || aiGeneratedReadme.trim().length < 100) {
+      throw new Error('AI generated content too short or empty');
+    }
+    
+    console.log('✅ AI generated README successfully');
+    return aiGeneratedReadme;
+    
+  } catch (error) {
+    console.error('❌ AI generation error:', error);
+    throw error;
+  }
+}
+
+// Build comprehensive AI prompt for README generation
+function buildAIPrompt(documentation, packageInfo, mainFile) {
+  const projectName = packageInfo?.name || 'Project';
+  const description = packageInfo?.description || '';
+  const version = packageInfo?.version || '1.0.0';
+  const author = packageInfo?.author || 'Developer';
+  const license = packageInfo?.license || 'MIT';
+  
+  // Extract key information for the AI
+  const languages = Object.keys(documentation.summary.languages || {});
+  const totalFiles = documentation.summary.totalFiles || 0;
+  const totalDirs = documentation.summary.totalDirectories || 0;
+  
+  // Get sample code snippets for context
+  const codeSnippets = documentation.files
+    .filter(f => f.raw && f.raw.length > 50)
+    .slice(0, 5)
+    .map(f => `File: ${f.path}\n${f.raw.substring(0, 200)}...`)
+    .join('\n\n');
+  
+  // Get detected features
+  const features = detectProjectFeatures(documentation);
+  
+  const prompt = `You are an expert software developer and technical writer. Generate a comprehensive, professional README.md file for a software project based on the following analysis:
+
+PROJECT INFORMATION:
+- Name: ${projectName}
+- Description: ${description}
+- Version: ${version}
+- Author: ${author}
+- License: ${license}
+
+TECHNICAL ANALYSIS:
+- Languages: ${languages.join(', ')}
+- Total Files: ${totalFiles}
+- Total Directories: ${totalDirs}
+- Detected Features: ${features.join(', ')}
+
+CODE SAMPLES:
+${codeSnippets}
+
+REQUIREMENTS:
+1. Create a professional, engaging README.md that accurately reflects the project
+2. Use the actual project name and description when available
+3. Include appropriate badges for version and license
+4. Create a comprehensive table of contents
+5. Write intelligent, project-specific descriptions based on the code analysis
+6. Include installation and usage instructions appropriate for the detected technologies
+7. Highlight the actual features and technologies found in the code
+8. Add a project structure section if meaningful
+9. Include contributing guidelines and license information
+10. Make it engaging and professional, suitable for GitHub or similar platforms
+11. Use proper Markdown formatting with headers, code blocks, and lists
+12. Be specific about what the project actually does based on the code analysis
+13. Avoid generic placeholder text - make it specific to this project
+
+The README should be comprehensive but not overly verbose. Focus on being helpful to developers who want to understand and use this project.
+
+Generate only the README content in Markdown format, starting with the title.`;
+
+  return prompt;
+}
+
+// Generate template-based README (fallback)
+function generateTemplateReadme(documentation, packageInfo, mainFile) {
+  const projectName = packageInfo?.name || 'Project';
+  
+  // Generate intelligent description based on code analysis
+  const description = generateIntelligentDescription(documentation, packageInfo);
+  
+  const version = packageInfo?.version || '1.0.0';
+  const author = packageInfo?.author || 'Developer';
+  const license = packageInfo?.license || 'MIT';
+  
+  let readme = `# ${projectName}\n\n`;
+  readme += `${description}\n\n`;
+  
+  // Badges
+  readme += `![Version](https://img.shields.io/badge/version-${version}-blue.svg)\n`;
+  readme += `![License](https://img.shields.io/badge/license-${license}-green.svg)\n\n`;
+  
+  // Table of Contents
+  readme += `## Table of Contents\n\n`;
+  readme += `- [Installation](#installation)\n`;
+  readme += `- [Usage](#usage)\n`;
+  readme += `- [Features](#features)\n`;
+  readme += `- [API Reference](#api-reference)\n`;
+  readme += `- [Contributing](#contributing)\n`;
+  readme += `- [License](#license)\n\n`;
+  
+  // Installation
+  readme += `## Installation\n\n`;
+  const installCommands = generateInstallCommands(packageInfo, documentation);
+  installCommands.forEach(cmd => {
+    readme += `\`\`\`bash\n${cmd}\n\`\`\`\n\n`;
+  });
+  
+  // Usage
+  readme += `## Usage\n\n`;
+  const usageCommands = generateUsageCommands(packageInfo, mainFile, documentation);
+  usageCommands.forEach(cmd => {
+    readme += `\`\`\`bash\n${cmd}\n\`\`\`\n\n`;
+  });
+  
+  // Features
+  readme += `## Features\n\n`;
+  if (documentation.files.length > 0) {
+    const languages = Object.keys(documentation.summary.languages || {});
+    readme += `- **Multi-language support**: ${languages.join(', ')}\n`;
+    readme += `- **${documentation.summary.totalFiles} source files**\n`;
+    readme += `- **${documentation.summary.totalDirectories} directories**\n`;
+    
+    // Add intelligent feature detection
+    const features = detectProjectFeatures(documentation);
+    features.forEach(feature => {
+      readme += `- **${feature}\n`;
+    });
+  }
+  readme += `- Modern architecture\n`;
+  readme += `- Easy to use\n\n`;
+  
+  // Code Analysis
+  readme += `## Code Analysis\n\n`;
+  
+  // Analyze the codebase
+  const codeAnalysis = analyzeCodebase(documentation);
+  if (codeAnalysis.languages.length > 0) {
+    readme += `### Languages & Technologies\n\n`;
+    codeAnalysis.languages.forEach(lang => {
+      readme += `- **${lang.name}**: ${lang.description}\n`;
+    });
+    readme += `\n`;
+  }
+  
+  if (codeAnalysis.patterns.length > 0) {
+    readme += `### Design Patterns\n\n`;
+    codeAnalysis.patterns.forEach(pattern => {
+      readme += `- **${pattern.name}**: ${pattern.description}\n`;
+    });
+    readme += `\n`;
+  }
+  
+  // API Reference
+  if (documentation.files.some(f => f.functions && f.functions.length > 0)) {
+    readme += `## API Reference\n\n`;
+    readme += `### Functions\n\n`;
+    
+    const allFunctions = [];
+    documentation.files.forEach(file => {
+      if (file.functions) {
+        file.functions.forEach(func => {
+          allFunctions.push({ name: func, file: file.path });
+        });
+      }
+    });
+    
+    // Show first 10 functions
+    allFunctions.slice(0, 10).forEach(func => {
+      readme += `- \`${func.name}\` - Defined in \`${func.file}\`\n`;
+    });
+    
+    if (allFunctions.length > 10) {
+      readme += `- ... and ${allFunctions.length - 10} more functions\n`;
+    }
+    readme += `\n`;
+  }
+  
+  // Project Structure
+  readme += `## Project Structure\n\n`;
+  
+  // Add intelligent structure description
+  const structureDescription = generateStructureDescription(documentation.structure);
+  if (structureDescription) {
+    readme += `${structureDescription}\n\n`;
+  }
+  
+  readme += `\`\`\`\n`;
+  const structureLines = [];
+  
+  function addStructureLines(structure, prefix = '') {
+    Object.entries(structure).forEach(([name, info]) => {
+      if (info.type === 'directory') {
+        structureLines.push(`${prefix}📁 ${name}/`);
+        if (info.children) {
+          addStructureLines(info.children, prefix + '  ');
+        }
+      } else {
+        structureLines.push(`${prefix}📄 ${name}`);
+      }
+    });
+  }
+  
+  addStructureLines(documentation.structure);
+  readme += structureLines.slice(0, 20).join('\n');
+  if (structureLines.length > 20) {
+    readme += `\n... and ${structureLines.length - 20} more files`;
+  }
+  readme += `\n\`\`\`\n\n`;
+  
+  // Contributing
+  readme += `## Contributing\n\n`;
+  readme += `1. Fork the project\n`;
+  readme += `2. Create your feature branch (\`git checkout -b feature/AmazingFeature\`)\n`;
+  readme += `3. Commit your changes (\`git commit -m 'Add some AmazingFeature'\`)\n`;
+  readme += `4. Push to the branch (\`git push origin feature/AmazingFeature\`)\n`;
+  readme += `5. Open a Pull Request\n\n`;
+  
+  // License
+  readme += `## License\n\n`;
+  readme += `This project is licensed under the ${license} License - see the [LICENSE](LICENSE) file for details.\n\n`;
+  
+  // Footer
+  readme += `---\n`;
+  readme += `Generated with ❤️ by GitGen\n`;
+  
+  return readme;
 }
 
 // Serve React app for all other routes
