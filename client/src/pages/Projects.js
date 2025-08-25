@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useProjects } from '../context/ProjectContext';
 import { 
@@ -17,12 +17,48 @@ import Loader from '../components/Loader';
 
 const Projects = () => {
   const { projects, loading, error, loadProjects, clearError } = useProjects();
+  const [projectProgress, setProjectProgress] = useState({});
 
   useEffect(() => {
     // Only load projects once when component mounts
     console.log('Projects component mounted, loading projects...');
     loadProjects();
   }, []); // Remove loadProjects from dependencies to prevent infinite re-renders
+
+  // Monitor progress for processing projects
+  useEffect(() => {
+    const processingProjects = projects.filter(p => p.status === 'processing');
+    
+    if (processingProjects.length === 0) {
+      setProjectProgress({});
+      return;
+    }
+
+    const progressIntervals = {};
+
+    processingProjects.forEach(project => {
+      if (!progressIntervals[project.id]) {
+        progressIntervals[project.id] = setInterval(async () => {
+          try {
+            const response = await fetch(`/api/projects/${project.id}/progress`);
+            if (response.ok) {
+              const progressData = await response.json();
+              setProjectProgress(prev => ({
+                ...prev,
+                [project.id]: progressData
+              }));
+            }
+          } catch (error) {
+            console.error(`Failed to fetch progress for project ${project.id}:`, error);
+          }
+        }, 2000);
+      }
+    });
+
+    return () => {
+      Object.values(progressIntervals).forEach(interval => clearInterval(interval));
+    };
+  }, [projects]);
 
   // Debug logging
   console.log('Projects component render:', { loading, error, projectsCount: projects.length });
@@ -360,6 +396,51 @@ const Projects = () => {
                   )}
                 </div>
               </div>
+
+              {/* Progress Display for Processing Projects */}
+              {project.status === 'processing' && projectProgress[project.id] && (
+                <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="flex items-center justify-between text-sm text-blue-700 mb-2">
+                    <span>{projectProgress[project.id].message || 'Processing...'}</span>
+                    <span>{projectProgress[project.id].percentage || 0}%</span>
+                  </div>
+                  
+                  {/* Progress Bar */}
+                  <div className="w-full bg-blue-200 rounded-full h-2 mb-3">
+                    <div 
+                      className="bg-blue-600 h-2 rounded-full transition-all duration-500 ease-out"
+                      style={{ width: `${projectProgress[project.id].percentage || 0}%` }}
+                    ></div>
+                  </div>
+                  
+                  {/* Progress Stages */}
+                  <div className="grid grid-cols-6 gap-2 text-xs">
+                    {[
+                      { step: 1, label: 'Setup' },
+                      { step: 2, label: 'Clone' },
+                      { step: 3, label: 'Analyze' },
+                      { step: 4, label: 'Generate' },
+                      { step: 5, label: 'AI' },
+                      { step: 6, label: 'Complete' }
+                    ].map((stage) => (
+                      <div key={stage.step} className="text-center">
+                        <div className={`w-3 h-3 rounded-full mx-auto mb-1 ${
+                          projectProgress[project.id].step >= stage.step ? 'bg-blue-600' : 'bg-blue-200'
+                        }`}></div>
+                        <span className={projectProgress[project.id].step >= stage.step ? 'font-medium text-blue-700' : 'text-blue-500'}>
+                          {stage.label}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  
+                  {projectProgress[project.id].estimatedTime && (
+                    <div className="mt-2 text-xs text-blue-600 text-center">
+                      <strong>ETA:</strong> ~{projectProgress[project.id].estimatedTime}s
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Project Stats */}
               {project.documentation && (

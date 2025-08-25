@@ -472,7 +472,7 @@ async function processRepository(projectId, repoUrl) {
     // Add timeout to git clone operation
     const clonePromise = git.clone(repoUrl, tempDir);
     const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Git clone timeout after 60 seconds')), 60000)
+      setTimeout(() => reject(new Error('Git clone timeout after 5 minutes')), 300000)
     );
     
     try {
@@ -1100,6 +1100,13 @@ function detectProjectFeatures(documentation) {
   let hasMorgan = false;
   let hasJest = false;
   let hasMocha = false;
+  let hasVitest = false;
+  let hasCypress = false;
+  let hasPlaywright = false;
+  let hasTestingLibrary = false;
+  let hasChai = false;
+  let hasSinon = false;
+  let hasSupertest = false;
   let hasESLint = false;
   let hasPrettier = false;
   let hasHusky = false;
@@ -1207,6 +1214,27 @@ function detectProjectFeatures(documentation) {
     if (content.includes('lint-staged') || content.includes('pre-commit hook')) {
       hasLintStaged = true;
     }
+    if (content.includes('vitest') || content.includes('vitest.config')) {
+      hasVitest = true;
+    }
+    if (content.includes('cypress') || content.includes('cypress.config')) {
+      hasCypress = true;
+    }
+    if (content.includes('playwright') || content.includes('playwright.config')) {
+      hasPlaywright = true;
+    }
+    if (content.includes('@testing-library/react') || content.includes('@testing-library/vue') || content.includes('@testing-library/angular')) {
+      hasTestingLibrary = true;
+    }
+    if (content.includes('chai') || content.includes('expect(') || content.includes('assert(')) {
+      hasChai = true;
+    }
+    if (content.includes('sinon') || content.includes('stub(') || content.includes('mock(')) {
+      hasSinon = true;
+    }
+    if (content.includes('supertest') || content.includes('request(')) {
+      hasSupertest = true;
+    }
   });
   
   // Add detected features with descriptions
@@ -1241,6 +1269,14 @@ function detectProjectFeatures(documentation) {
   if (hasPrettier) features.push('Prettier for consistent code formatting');
   if (hasHusky) features.push('Git hooks for pre-commit validation');
   if (hasLintStaged) features.push('Lint-staged for efficient code checking');
+  if (hasVitest) features.push('Vitest fast unit testing framework powered by Vite');
+  if (hasCypress) features.push('Cypress end-to-end testing for modern web apps');
+  if (hasPlaywright) features.push('Playwright reliable web testing and automation');
+  if (hasTestingLibrary) features.push('Testing Library for component testing');
+  if (hasChai) features.push('Chai assertion library for expressive testing');
+  if (hasSinon) features.push('Sinon for mocking, stubbing and spying');
+  if (hasSupertest) features.push('Supertest for API testing and assertions');
+  if (hasESLint) features.push('ESLint for code quality enforcement');
   
   return features;
 }
@@ -1507,6 +1543,9 @@ function buildAIPrompt(documentation, packageInfo, mainFile) {
   // Get detected features
   const features = detectProjectFeatures(documentation);
   
+  // Get testing framework information for better AI context
+  const testingInfo = detectTestingFramework(documentation, packageInfo);
+  
   const prompt = `You are an expert software developer and technical writer specializing in creating professional, comprehensive README.md files for GitHub repositories. Your goal is to create READMEs that match the quality and comprehensiveness of top-tier open source projects.
 
 Generate a comprehensive, professional README.md file for a software project based on the following analysis:
@@ -1523,6 +1562,14 @@ TECHNICAL ANALYSIS:
 - Total Files: ${totalFiles}
 - Total Directories: ${totalDirs}
 - Detected Features: ${features.join(', ')}
+
+TESTING FRAMEWORK ANALYSIS:
+- Primary Framework: ${testingInfo.framework || 'Standard Testing'}
+- Framework Description: ${testingInfo.description || 'Comprehensive testing capabilities'}
+- Framework Version: ${testingInfo.version || 'Latest'}
+- Coverage Tool: ${testingInfo.coverage || 'Standard coverage'}
+- Test Files: ${testingInfo.testFiles.length} test files detected
+- Test Scripts: ${testingInfo.testScripts.length} test scripts available
 
 CODE SAMPLES:
 ${codeSnippets}
@@ -1552,7 +1599,7 @@ MANDATORY SECTIONS TO INCLUDE:
 - 📚 API Reference (functions, endpoints, examples)
 - 🏗️ Project Structure (visual file tree)
 - 🤝 Contributing (detailed contribution guide)
-- 🧪 Testing (test commands + coverage info)
+- 🧪 Testing (comprehensive testing documentation)
 - 🚀 Deployment (production + Docker)
 - 🔧 Troubleshooting (common issues + solutions)
 - 📄 License (clear licensing information)
@@ -1566,6 +1613,28 @@ MANDATORY SECTIONS TO INCLUDE:
 - Security best practices
 - Browser compatibility (if applicable)
 - Mobile considerations (if applicable)
+
+**Testing Section Requirements (🧪 Testing):**
+The testing section must be comprehensive and include:
+- **Testing Framework Details**: Specific framework name, version, and description
+- **Test Commands**: All available test scripts from package.json (test, test:watch, test:coverage, etc.)
+- **Code Coverage Information**: Current coverage metrics, coverage goals, and coverage tools used
+- **Test Structure**: Organization of test files (unit, integration, e2e tests)
+- **Testing Best Practices**: Guidelines for writing and running tests
+- **Test Configuration**: Environment variables and configuration options
+- **Continuous Integration**: How tests are run in CI/CD pipelines
+- **Debugging Tests**: Commands for troubleshooting test issues
+- **Test Examples**: Sample test code snippets if applicable
+
+**Specific Testing Requirements:**
+Based on the detected testing framework (${testingInfo.framework}), ensure the testing section includes:
+- **Framework-specific commands** and configuration
+- **Coverage reporting** using ${testingInfo.coverage || 'standard coverage tools'}
+- **Test organization** based on the ${testingInfo.testFiles.length} detected test files
+- **Available test scripts** from package.json (${testingInfo.testScripts.length} found)
+- **Testing patterns** and best practices for the detected framework
+- **Integration with CI/CD** pipelines
+- **Debugging and troubleshooting** specific to the testing setup
 
 **Formatting Requirements:**
 - Use emojis for section headers (🚀, 📦, 🎯, etc.)
@@ -1783,11 +1852,93 @@ function generateTemplateReadme(documentation, packageInfo, mainFile) {
   
   // Testing section
   readme += `## 🧪 Testing\n\n`;
-  readme += `### Running Tests\n\n`;
-  readme += `\`\`\`bash\n# Run all tests\nnpm test\n\n# Run tests in watch mode\nnpm run test:watch\n\n# Run tests with coverage\nnpm run test:coverage\n\`\`\`\n\n`;
   
+  // Enhanced testing framework detection
+  const testingInfo = detectTestingFramework(documentation, packageInfo);
+  
+  readme += `### Testing Framework\n\n`;
+  if (testingInfo.framework) {
+    readme += `This project uses **${testingInfo.framework}** as the primary testing framework.\n\n`;
+    
+    if (testingInfo.description) {
+      readme += `${testingInfo.description}\n\n`;
+    }
+    
+    if (testingInfo.version) {
+      readme += `**Version**: ${testingInfo.version}\n\n`;
+    }
+  } else {
+    readme += `This project includes comprehensive testing capabilities.\n\n`;
+  }
+  
+  readme += `### Running Tests\n\n`;
+  
+  // Enhanced test commands based on package.json scripts
+  if (packageInfo && packageInfo.scripts) {
+    const testScripts = Object.entries(packageInfo.scripts)
+      .filter(([key, value]) => key.includes('test') || key.includes('spec'))
+      .map(([key, value]) => ({ key, value }));
+    
+    if (testScripts.length > 0) {
+      testScripts.forEach(({ key, value }) => {
+        readme += `**${key}**:\n`;
+        readme += `\`\`\`bash\n${value}\n\`\`\`\n\n`;
+      });
+    } else {
+      readme += `\`\`\`bash\n# Run all tests\nnpm test\n\n# Run tests in watch mode\nnpm run test:watch\n\n# Run tests with coverage\nnpm run test:coverage\n\`\`\`\n\n`;
+    }
+  } else {
+    readme += `\`\`\`bash\n# Run all tests\nnpm test\n\n# Run tests in watch mode\nnpm run test:watch\n\n# Run tests with coverage\nnpm run test:coverage\n\`\`\`\n\n`;
+  }
+  
+  // Test coverage information
   readme += `### Test Coverage\n\n`;
   readme += `We maintain high test coverage to ensure code quality and reliability.\n\n`;
+  
+  if (testingInfo.coverage) {
+    readme += `**Current Coverage**: ${testingInfo.coverage}\n\n`;
+  }
+  
+  readme += `**Coverage Goals**:\n`;
+  readme += `- **Statements**: >90%\n`;
+  readme += `- **Branches**: >85%\n`;
+  readme += `- **Functions**: >90%\n`;
+  readme += `- **Lines**: >90%\n\n`;
+  
+  // Test structure and organization
+  if (testingInfo.testFiles && testingInfo.testFiles.length > 0) {
+    readme += `### Test Structure\n\n`;
+    readme += `Tests are organized in the following structure:\n\n`;
+    testingInfo.testFiles.forEach(testFile => {
+      readme += `- \`${testFile}\` - ${testFile.includes('unit') ? 'Unit tests' : testFile.includes('integration') ? 'Integration tests' : testFile.includes('e2e') ? 'End-to-end tests' : 'Test file'}\n`;
+    });
+    readme += `\n`;
+  }
+  
+  // Testing best practices
+  readme += `### Testing Best Practices\n\n`;
+  readme += `- **Unit Tests**: Test individual functions and components in isolation\n`;
+  readme += `- **Integration Tests**: Test how different parts work together\n`;
+  readme += `- **End-to-End Tests**: Test complete user workflows\n`;
+  readme += `- **Mocking**: Use mocks for external dependencies and API calls\n`;
+  readme += `- **Test Data**: Use fixtures and factories for consistent test data\n`;
+  readme += `- **Assertions**: Use descriptive assertions that clearly show what failed\n\n`;
+  
+  // Test configuration
+  readme += `### Test Configuration\n\n`;
+  readme += `Tests can be configured using environment variables:\n\n`;
+  readme += `\`\`\`env\n# Test environment\nNODE_ENV=test\nTEST_TIMEOUT=10000\nCOVERAGE_THRESHOLD=90\n\`\`\`\n\n`;
+  
+  // Continuous Integration testing
+  readme += `### Continuous Integration\n\n`;
+  readme += `All tests are automatically run on every pull request and commit:\n\n`;
+  readme += `- **Pre-commit**: Linting and unit tests\n`;
+  readme += `- **Pull Request**: Full test suite with coverage\n`;
+  readme += `- **Main Branch**: Integration and end-to-end tests\n\n`;
+  
+  // Debugging tests
+  readme += `### Debugging Tests\n\n`;
+  readme += `\`\`\`bash\n# Run tests with verbose output\nnpm test -- --verbose\n\n# Run specific test file\nnpm test -- --testPathPattern=user.test.js\n\n# Run tests with debugging\nnpm test -- --inspect-brk\n\`\`\`\n\n`;
   
   // Deployment section
   readme += `## 🚀 Deployment\n\n`;

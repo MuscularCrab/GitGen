@@ -24,6 +24,7 @@ const Home = () => {
   // Add AI status display
   const [aiConfig, setAiConfig] = useState(null);
   const [aiLoading, setAiLoading] = useState(true);
+  const [processingProgress, setProcessingProgress] = useState(null);
 
   useEffect(() => {
     const checkAIStatus = async () => {
@@ -79,10 +80,10 @@ const Home = () => {
     }
   };
 
-  // Function to monitor project status and redirect when AI generation completes
+  // Function to monitor project status and show progress
   const monitorProjectStatus = async (projectId) => {
     try {
-      const response = await fetch(`/api/projects/${projectId}`);
+      const response = await fetch(`/api/projects/${projectId}/progress`);
       const project = await response.json();
       
       if (project.status === 'completed' || project.status === 'failed') {
@@ -90,6 +91,8 @@ const Home = () => {
         console.log('AI generation completed, redirecting to project...');
         window.location.href = `/projects/${projectId}`;
       } else {
+        // Update progress display
+        setProcessingProgress(project);
         // Continue polling if still processing
         setTimeout(() => monitorProjectStatus(projectId), 2000);
       }
@@ -226,6 +229,52 @@ const Home = () => {
                     We're now analyzing your repository and generating comprehensive documentation. 
                     This may take a few minutes. You'll be redirected to your project when it's complete.
                   </p>
+                  
+                  {/* Progress Display */}
+                  {processingProgress && (
+                    <div className="mt-4">
+                      <div className="flex items-center justify-between text-sm text-green-700 mb-2">
+                        <span>{processingProgress.message || 'Processing...'}</span>
+                        <span>{processingProgress.percentage || 0}%</span>
+                      </div>
+                      
+                      {/* Progress Bar */}
+                      <div className="w-full bg-green-200 rounded-full h-2 mb-3">
+                        <div 
+                          className="bg-green-600 h-2 rounded-full transition-all duration-500 ease-out"
+                          style={{ width: `${processingProgress.percentage || 0}%` }}
+                        ></div>
+                      </div>
+                      
+                      {/* Progress Stages */}
+                      <div className="grid grid-cols-6 gap-2 text-xs">
+                        {[
+                          { step: 1, label: 'Setup' },
+                          { step: 2, label: 'Clone' },
+                          { step: 3, label: 'Analyze' },
+                          { step: 4, label: 'Generate' },
+                          { step: 5, label: 'AI' },
+                          { step: 6, label: 'Complete' }
+                        ].map((stage) => (
+                          <div key={stage.step} className="text-center">
+                            <div className={`w-4 h-4 rounded-full mx-auto mb-1 ${
+                              processingProgress.step >= stage.step ? 'bg-green-600' : 'bg-green-200'
+                            }`}></div>
+                            <span className={processingProgress.step >= stage.step ? 'font-medium text-green-700' : 'text-green-500'}>
+                              {stage.label}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                      
+                      {processingProgress.estimatedTime && (
+                        <div className="mt-3 text-xs text-green-600 text-center">
+                          <strong>Estimated Time Remaining:</strong> ~{processingProgress.estimatedTime} seconds
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  
                   <div className="mt-3">
                     <Loader size="small" />
                     <span className="text-sm text-green-600 ml-2">Processing...</span>
