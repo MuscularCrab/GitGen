@@ -1,9 +1,9 @@
-import React, { useState, useContext } from 'react';
-import { ProjectContext } from '../context/ProjectContext';
+import React, { useState } from 'react';
+import { useProjects } from '../context/ProjectContext';
 import { useNavigate } from 'react-router-dom';
 
 const Home = () => {
-  const { createProject } = useContext(ProjectContext);
+  const { createProject } = useProjects();
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     repoUrl: '',

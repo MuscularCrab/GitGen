@@ -300,4 +300,4 @@ export const useProjects = () => {
 };
 
 export { ProjectContext };
-export default useProjectContext;
+export default useProjects;
