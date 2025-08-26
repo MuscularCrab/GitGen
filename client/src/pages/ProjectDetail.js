@@ -1014,18 +1014,43 @@ const ProjectDetail = () => {
                       </div>
                       <div className="text-blue-700">Root Items</div>
                     </div>
-                    <div className="text-center">
-                      <div className="text-lg font-semibold text-blue-600">
-                        {Object.values(currentProject.documentation.structure).filter(item => item.type === 'directory').length}
-                      </div>
-                      <div className="text-blue-700">Directories</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-lg font-semibold text-blue-600">
-                        {Object.values(currentProject.documentation.structure).filter(item => item.type === 'file').length}
-                      </div>
-                      <div className="text-blue-700">Files</div>
-                    </div>
+                                         <div className="text-center">
+                       <div className="text-lg font-semibold text-blue-600">
+                         {(() => {
+                           let dirCount = 0;
+                           function countDirs(structure) {
+                             Object.values(structure).forEach(item => {
+                               if (item.type === 'directory') {
+                                 dirCount++;
+                                 if (item.children) countDirs(item.children);
+                               }
+                             });
+                           }
+                           countDirs(currentProject.documentation.structure);
+                           return dirCount;
+                         })()}
+                       </div>
+                       <div className="text-blue-700">Directories</div>
+                     </div>
+                     <div className="text-center">
+                       <div className="text-lg font-semibold text-blue-600">
+                         {(() => {
+                           let fileCount = 0;
+                           function countFiles(structure) {
+                             Object.values(structure).forEach(item => {
+                               if (item.type === 'file') {
+                                 fileCount++;
+                               } else if (item.type === 'directory' && item.children) {
+                                 countFiles(item.children);
+                               }
+                             });
+                           }
+                           countFiles(currentProject.documentation.structure);
+                           return fileCount;
+                         })()}
+                       </div>
+                       <div className="text-blue-700">Files</div>
+                     </div>
                     <div className="text-center">
                       <div className="text-lg font-semibold text-blue-600">
                         {expandedFiles.size}

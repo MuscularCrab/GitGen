@@ -899,7 +899,7 @@ async function findReadmeFiles(repoPath) {
 async function analyzeRepositoryStructure(repoPath) {
   const structure = {};
   
-  async function scanDirectory(dirPath, relativePath = '') {
+  async function scanDirectory(dirPath, relativePath = '', parentStructure = structure) {
     try {
       const items = await fs.readdir(dirPath);
       
@@ -913,10 +913,13 @@ async function analyzeRepositoryStructure(repoPath) {
           const stats = await fs.stat(fullPath);
           
           if (stats.isDirectory()) {
-            structure[relativeItemPath] = { type: 'directory', children: {} };
-            await scanDirectory(fullPath, relativeItemPath);
+            // Create directory entry in the current level
+            parentStructure[item] = { type: 'directory', children: {} };
+            // Recursively scan the subdirectory
+            await scanDirectory(fullPath, relativeItemPath, parentStructure[item].children);
           } else {
-            structure[relativeItemPath] = { 
+            // Create file entry in the current level
+            parentStructure[item] = { 
               type: 'file', 
               size: stats.size,
               extension: path.extname(item)
@@ -1133,13 +1136,30 @@ function extractPythonImports(content) {
 
 // Generate overall summary
 function generateSummary(documentation) {
+  // Count files and directories recursively
+  let totalFiles = 0;
+  let totalDirectories = 0;
+  
+  function countItems(structure) {
+    if (!structure || typeof structure !== 'object') return;
+    
+    Object.values(structure).forEach(item => {
+      if (item.type === 'file') {
+        totalFiles++;
+      } else if (item.type === 'directory') {
+        totalDirectories++;
+        if (item.children) {
+          countItems(item.children);
+        }
+      }
+    });
+  }
+  
+  countItems(documentation.structure);
+  
   const summary = {
-    totalFiles: Object.keys(documentation.structure).filter(key => 
-      documentation.structure[key].type === 'file'
-    ).length,
-    totalDirectories: Object.keys(documentation.structure).filter(key => 
-      documentation.structure[key].type === 'directory'
-    ).length,
+    totalFiles,
+    totalDirectories,
     hasReadme: !!documentation.readme,
     languages: {},
     fileTypes: {}
@@ -1325,6 +1345,8 @@ function generateIntelligentDescription(documentation, packageInfo) {
 
 // Detect project features based on code analysis
 function detectProjectFeatures(documentation) {
+  const totalFiles = documentation.summary?.totalFiles || 0;
+  const languages = Object.keys(documentation.summary?.languages || {});
   const features = [];
   
   // Check for common patterns and technologies
