@@ -337,16 +337,24 @@ const Home = () => {
                     </svg>
                   </button>
                 </div>
-                {error.includes('timeout') && (
-                  <div className="mt-3 text-sm text-red-700 dark:text-red-300">
-                    <p>Don't worry! Your project is still processing in the background. You can:</p>
-                    <ul className="mt-2 list-disc list-inside space-y-1">
-                      <li>Wait a few more minutes for processing to complete</li>
-                      <li>Check the <a href="/projects" className="underline hover:text-red-800">Projects page</a> to see the current status</li>
-                      <li>Refresh this page and try again</li>
-                    </ul>
-                  </div>
-                )}
+                                 {error.includes('timeout') && (
+                   <div className="mt-3 text-sm text-red-700 dark:text-red-300">
+                     <p>Don't worry! Your project is still processing in the background. You can:</p>
+                     <ul className="mt-2 list-disc list-inside space-y-1">
+                       <li>Wait a few more minutes for processing to complete</li>
+                       <li>Check the Projects page to see the current status</li>
+                       <li>Refresh this page and try again</li>
+                     </ul>
+                     <div className="mt-3">
+                       <a 
+                         href="/projects" 
+                         className="inline-flex items-center px-3 py-2 text-sm font-medium text-red-700 bg-red-100 border border-red-300 rounded-md hover:bg-red-200 transition-colors"
+                       >
+                         Go to Projects Page
+                       </a>
+                     </div>
+                   </div>
+                 )}
               </div>
             )}
 
@@ -365,11 +373,21 @@ const Home = () => {
                         ? 'Documentation already generated!' 
                         : 'Documentation generation started!'}
                     </h3>
-                    <p className="mt-1 text-sm text-green-700 dark:text-green-300">
-                      {processingProgress && processingProgress.status === 'completed'
-                        ? 'This project has already been processed. Redirecting to view the generated documentation...'
-                        : 'We\'re analyzing your repository and generating comprehensive documentation. This may take a few minutes. You can also check the <a href="/projects" className="underline hover:text-green-800">Projects page</a> to monitor progress.'}
-                    </p>
+                                         <p className="mt-1 text-sm text-green-700 dark:text-green-300">
+                       {processingProgress && processingProgress.status === 'completed'
+                         ? 'This project has already been processed. Redirecting to view the generated documentation...'
+                         : 'We\'re analyzing your repository and generating comprehensive documentation. This may take a few minutes. You can also check the Projects page to monitor progress.'}
+                     </p>
+                     {!processingProgress || processingProgress.status !== 'completed' ? (
+                       <div className="mt-2">
+                         <a 
+                           href="/projects" 
+                           className="text-sm text-green-600 hover:text-green-800 underline font-medium"
+                         >
+                           View Projects Page →
+                         </a>
+                       </div>
+                     ) : null}
                   </div>
                 </div>
 
@@ -402,9 +420,15 @@ const Home = () => {
                         </div>
                       ))}
                     </div>
-                    {processingProgress.estimatedTime && (
-                      <div className="mt-3 text-xs text-green-600 text-center">
-                        <strong>Estimated Time Remaining:</strong> ~{processingProgress.estimatedTime} seconds
+                    {/* Progress Percentage Display */}
+                    {processingProgress.percentage !== undefined && (
+                      <div className="mt-3 text-center">
+                        <div className="text-lg font-bold text-green-600 mb-1">
+                          {processingProgress.percentage}%
+                        </div>
+                        <div className="text-xs text-green-600">
+                          <strong>Processing Progress</strong>
+                        </div>
                       </div>
                     )}
                   </div>

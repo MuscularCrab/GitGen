@@ -77,7 +77,7 @@ If AI generation fails or is unavailable, GitGen automatically falls back to:
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `GEMINI_API_KEY` | Required | Your Gemini API key |
-| `GEMINI_MODEL` | `gemini-pro` | AI model to use |
+| `GEMINI_MODEL` | `gemini-1.5-flash` | AI model to use (gemini-1.5-flash or gemini-1.5-pro) |
 | `GEMINI_TEMPERATURE` | `0.7` | Creativity level (0.0-1.0) |
 | `GEMINI_MAX_TOKENS` | `4000` | Maximum response length |
 
@@ -95,6 +95,7 @@ If AI generation fails or is unavailable, GitGen automatically falls back to:
 - **"No Gemini API key found"**: Set `GEMINI_API_KEY` in your `.env` file
 - **"Gemini AI package not installed"**: Install with `npm install @google/generative-ai`
 - **"AI generation failed"**: Check API key validity and network connectivity
+- **"Model not found"**: Use `gemini-1.5-flash` or `gemini-1.5-pro` (gemini-pro is deprecated)
 
 ## Benefits
 

@@ -113,6 +113,20 @@ PORT=3001
 NODE_ENV=development
 ```
 
+### Gemini AI Configuration (Optional)
+For AI-powered README generation, add these variables:
+
+```env
+GEMINI_API_KEY=your_api_key_here
+GEMINI_MODEL=gemini-1.5-flash
+GEMINI_TEMPERATURE=0.7
+GEMINI_MAX_TOKENS=4000
+```
+
+**Important**: Use `gemini-1.5-flash` (fastest) or `gemini-1.5-pro` (most capable). The old `gemini-pro` model is deprecated and no longer supported.
+
+Get your API key from [Google AI Studio](https://makersuite.google.com/app/apikey).
+
 ### Supported Git Hosts
 - GitHub (https://github.com/username/repo)
 - GitLab (https://gitlab.com/username/repo)
@@ -146,6 +160,21 @@ npm test
 cd client
 npm test
 ```
+
+## 🔍 Troubleshooting
+
+### AI Generation Issues
+If you encounter "Model not found" errors:
+
+1. **Check your model name**: Use `gemini-1.5-flash` or `gemini-1.5-pro`
+2. **Verify API key**: Ensure `GEMINI_API_KEY` is set correctly
+3. **Check API status**: Visit [Google AI Studio](https://makersuite.google.com/app/apikey) to verify service status
+4. **Fallback**: Template generation will still work without AI
+
+### Common Error Messages
+- **"Model not found"**: Update `GEMINI_MODEL` to use supported models
+- **"No Gemini API key found"**: Set `GEMINI_API_KEY` in your `.env` file
+- **"AI generation failed"**: Check API key validity and network connectivity
 
 ## 🚀 Deployment
 

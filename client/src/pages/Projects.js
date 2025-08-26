@@ -361,7 +361,7 @@ const Projects = () => {
                 <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                   <div className="flex items-center justify-between text-sm text-blue-700 mb-2">
                     <span>{projectProgress[project.id].message || 'Processing...'}</span>
-                    <span>{projectProgress[project.id].percentage || 0}%</span>
+                    <span className="font-bold text-lg text-blue-800">{projectProgress[project.id].percentage || 0}%</span>
                   </div>
                   
                   {/* Progress Bar */}
@@ -393,11 +393,7 @@ const Projects = () => {
                     ))}
                   </div>
                   
-                  {projectProgress[project.id].estimatedTime && (
-                    <div className="mt-2 text-xs text-blue-600 text-center">
-                      <strong>ETA:</strong> ~{projectProgress[project.id].estimatedTime}s
-                    </div>
-                  )}
+
                 </div>
               )}
 

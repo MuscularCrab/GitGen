@@ -26,8 +26,19 @@ if (apiKey) {
     temperature: parseFloat(process.env.GEMINI_TEMPERATURE) || 0.7,
     maxTokens: parseInt(process.env.GEMINI_MAX_TOKENS) || 4000
   };
+  
+  // Validate the model name
+  const validModels = ['gemini-1.5-flash', 'gemini-1.5-pro'];
+  if (!validModels.includes(AI_CONFIG.model)) {
+    console.log(`⚠️  Warning: Model '${AI_CONFIG.model}' may not be supported.`);
+    console.log(`   Supported models: ${validModels.join(', ')}`);
+    console.log(`   Falling back to 'gemini-1.5-flash'`);
+    AI_CONFIG.model = 'gemini-1.5-flash';
+  }
   console.log('✅ Gemini AI initialized successfully');
   console.log(`   Using model: ${AI_CONFIG.model}`);
+  console.log(`   Supported models: gemini-1.5-flash, gemini-1.5-pro`);
+  console.log(`   Note: gemini-pro is deprecated and no longer supported`);
 } else {
   console.log('⚠️  No Gemini API key found. AI generation will be disabled.');
   console.log('   Add GEMINI_API_KEY to your .env file to enable AI generation.');
@@ -406,24 +417,27 @@ app.get('/api/projects/:projectId/progress', (req, res) => {
       totalSteps: 6,
       message: 'Progress not available',
       percentage: 0,
-      estimatedTime: null,
       status: project.status || 'unknown'
     });
   }
   
-  // Calculate percentage and ETA
-  const percentage = Math.round((project.progress.step / project.progress.totalSteps) * 100);
-  let estimatedTime = null;
+  // Calculate enhanced percentage based on step progress
+  let percentage = Math.round((project.progress.step / project.progress.totalSteps) * 100);
   
-  // Use intelligent ETA calculation based on repository analysis
-  if (project.progress.startTime && project.progress.step > 0) {
-    estimatedTime = calculateIntelligentETA(project);
+  // Enhance percentage calculation for better user experience
+  if (project.progress.step > 0 && project.progress.step < 6) {
+    // Add sub-step progress for more granular feedback
+    const stepProgress = project.progress.stepProgress || 0;
+    const stepPercentage = Math.round((stepProgress / 100) * (100 / project.progress.totalSteps));
+    percentage = Math.round(((project.progress.step - 1) / project.progress.totalSteps) * 100) + stepPercentage;
   }
+  
+  // Ensure percentage is within bounds
+  percentage = Math.max(0, Math.min(100, percentage));
   
   const response = {
     ...project.progress,
     percentage,
-    estimatedTime,
     status: project.status || 'processing'
   };
   
@@ -443,7 +457,7 @@ app.get('/api/projects/:projectId/progress', (req, res) => {
   res.json(response);
 });
 
-// Get repository metrics for ETA calculation
+// Get repository metrics for progress tracking and analysis
 async function getRepositoryMetrics(repoPath) {
   try {
     const metrics = {
@@ -528,129 +542,7 @@ async function getRepositoryMetrics(repoPath) {
   }
 }
 
-// Calculate intelligent ETA based on repository size and complexity
-function calculateIntelligentETA(project) {
-  if (!project.progress || !project.progress.startTime) {
-    return null;
-  }
 
-  const elapsed = Date.now() - project.progress.startTime;
-  const currentStep = project.progress.step;
-  
-  // Base time estimates for each step (in milliseconds)
-  const stepTimeEstimates = {
-    1: 1000,    // Creating temp directory: ~1 second
-    2: 30000,   // Cloning: depends on repo size
-    3: 15000,   // Analyzing structure: depends on file count
-    4: 20000,   // Generating documentation: depends on complexity
-    5: 25000,   // AI README generation: depends on content
-    6: 5000     // Finalizing: ~5 seconds
-  };
-  
-  // Get repository metrics for better estimates
-  let totalFiles = 0;
-  let totalSize = 0;
-  let languages = 0;
-  
-  // Use repoMetrics if available (from step 3+), otherwise fall back to documentation summary
-  if (project.repoMetrics) {
-    totalFiles = project.repoMetrics.totalFiles || 0;
-    totalSize = project.repoMetrics.totalSize || 0;
-    languages = project.repoMetrics.languages?.length || 0;
-  } else if (project.documentation?.summary) {
-    totalFiles = project.documentation.summary.totalFiles || 0;
-    totalSize = project.documentation.summary.totalSize || 0;
-    languages = Object.keys(project.documentation.summary.languages || {}).length;
-  }
-  
-  // Adjust clone time based on repository size
-  if (currentStep >= 2) {
-    // Base clone time: 30 seconds for small repos, scales with size
-    const baseCloneTime = 30000;
-    
-    if (totalSize > 0) {
-      // If we have size info, use it for more accurate estimates
-      const sizeMultiplier = Math.min(totalSize / (1024 * 1024), 10); // Cap at 10x for very large repos
-      stepTimeEstimates[2] = Math.round(baseCloneTime * (1 + sizeMultiplier * 0.1));
-    } else {
-      // For step 2 (cloning), use a conservative estimate
-      // Small repos: 20-40 seconds, Medium: 40-80 seconds, Large: 80-120 seconds
-      stepTimeEstimates[2] = 60000; // Default to 1 minute for unknown size
-    }
-  }
-  
-  // Adjust analysis time based on file count
-  if (currentStep >= 3 && totalFiles > 0) {
-    // Base analysis time: 15 seconds, scales with file count
-    const baseAnalysisTime = 15000;
-    const fileMultiplier = Math.min(totalFiles / 100, 5); // Cap at 5x for very large repos
-    stepTimeEstimates[3] = Math.round(baseAnalysisTime * (1 + fileMultiplier * 0.2));
-  }
-  
-  // Adjust documentation generation time based on complexity
-  if (currentStep >= 4) {
-    const baseGenTime = 20000;
-    let complexityMultiplier = 1;
-    
-    if (totalFiles > 200) complexityMultiplier += 0.5;
-    if (languages > 5) complexityMultiplier += 0.3;
-    if (totalSize > 50 * 1024 * 1024) complexityMultiplier += 0.4; // 50MB+
-    
-    stepTimeEstimates[4] = Math.round(baseGenTime * complexityMultiplier);
-  }
-  
-  // Adjust AI generation time based on content complexity
-  if (currentStep >= 5) {
-    const baseAITime = 25000;
-    let aiMultiplier = 1;
-    
-    if (totalFiles > 100) aiMultiplier += 0.3;
-    if (languages > 3) aiMultiplier += 0.2;
-    if (project.mode === 'v1') aiMultiplier += 0.4; // Comprehensive mode takes longer
-    
-    stepTimeEstimates[5] = Math.round(baseAITime * aiMultiplier);
-  }
-  
-  // Calculate remaining time based on current step
-  let remainingTime = 0;
-  for (let step = currentStep + 1; step <= 6; step++) {
-    remainingTime += stepTimeEstimates[step] || 0;
-  }
-  
-  // Add some buffer time for network delays and processing variations
-  remainingTime = Math.round(remainingTime * 1.2);
-  
-  // Convert to seconds and apply reasonable bounds
-  let estimatedSeconds = Math.round(remainingTime / 1000);
-  
-  // Apply bounds: minimum 10 seconds, maximum 10 minutes
-  estimatedSeconds = Math.max(10, Math.min(600, estimatedSeconds));
-  
-  // Use rolling average if we have previous estimates to smooth fluctuations
-  if (project.progress.lastETA && currentStep > 1) {
-    const smoothingFactor = 0.6; // 60% weight to previous, 40% to current
-    estimatedSeconds = Math.round(
-      (project.progress.lastETA * smoothingFactor) + (estimatedSeconds * (1 - smoothingFactor))
-    );
-  }
-  
-  // Store for next calculation
-  project.progress.lastETA = estimatedSeconds;
-  
-  // Log ETA calculation details for debugging
-  console.log(`ETA calculation for project ${project.id}:`, {
-    step: currentStep,
-    totalFiles,
-    totalSize: totalSize ? `${Math.round(totalSize / (1024 * 1024))}MB` : 'unknown',
-    languages,
-    mode: project.mode,
-    stepEstimates: stepTimeEstimates,
-    remainingTime: `${Math.round(remainingTime / 1000)}s`,
-    finalETA: `${estimatedSeconds}s`
-  });
-  
-  return estimatedSeconds;
-}
 
 // Download generated README
 app.get('/api/projects/:projectId/readme', (req, res) => {
@@ -799,8 +691,7 @@ async function processRepository(projectId, repoUrl, mode = 'v2') {
       step: 0,
       totalSteps: 6,
       message: 'Initializing repository processing...',
-      startTime: Date.now(),
-      estimatedTime: null
+      startTime: Date.now()
     };
 
     const tempDir = `temp/${projectId}`;
@@ -809,12 +700,15 @@ async function processRepository(projectId, repoUrl, mode = 'v2') {
     // Step 1: Create temp directory
     project.progress.currentStep = 'creating_temp';
     project.progress.step = 1;
+    project.progress.stepProgress = 0;
     project.progress.message = 'Creating temporary directory...';
     await fs.mkdir(tempDir, { recursive: true });
+    project.progress.stepProgress = 100;
 
     // Step 2: Clone repository
     project.progress.currentStep = 'cloning';
     project.progress.step = 2;
+    project.progress.stepProgress = 0;
     project.progress.message = 'Cloning repository...';
     console.log(`Cloning repository: ${repoUrl}`);
     const git = simpleGit();
@@ -827,6 +721,7 @@ async function processRepository(projectId, repoUrl, mode = 'v2') {
     
     try {
       await Promise.race([clonePromise, timeoutPromise]);
+      project.progress.stepProgress = 100;
       console.log(`Repository cloned successfully to: ${tempDir}`);
     } catch (cloneError) {
       console.error(`Git clone failed for ${repoUrl}:`, cloneError);
@@ -836,30 +731,36 @@ async function processRepository(projectId, repoUrl, mode = 'v2') {
     // Step 3: Analyze repository structure
     project.progress.currentStep = 'analyzing';
     project.progress.step = 3;
+    project.progress.stepProgress = 0;
     project.progress.message = 'Analyzing repository structure...';
     console.log(`Analyzing repository structure for: ${tempDir}`);
     
-    // Get repository metrics for better ETA calculation
+    // Get repository metrics for better progress tracking
     const repoMetrics = await getRepositoryMetrics(tempDir);
     project.repoMetrics = repoMetrics;
+    project.progress.stepProgress = 100;
     console.log(`Repository metrics:`, repoMetrics);
 
     // Step 4: Generate documentation
     project.progress.currentStep = 'generating';
     project.progress.step = 4;
+    project.progress.stepProgress = 0;
     project.progress.message = 'Generating documentation...';
     console.log(`Generating documentation for: ${tempDir}`);
     const documentation = await generateDocumentation(tempDir, project, mode);
+    project.progress.stepProgress = 100;
     
     // Step 5: Generate AI README
     project.progress.currentStep = 'ai_generation';
     project.progress.step = 5;
+    project.progress.stepProgress = 0;
     project.progress.message = `Generating AI-powered README (${mode.toUpperCase()})...`;
     console.log(`Generating AI README for: ${tempDir} (${mode.toUpperCase()})`);
 
     // Step 6: Finalizing
     project.progress.currentStep = 'finalizing';
     project.progress.step = 6;
+    project.progress.stepProgress = 0;
     project.progress.message = 'Finalizing documentation...';
     
     // Verify project data integrity before updating
@@ -874,12 +775,11 @@ async function processRepository(projectId, repoUrl, mode = 'v2') {
     currentProject.documentation = documentation;
     currentProject.completedAt = new Date().toISOString();
     
-    // Calculate total time and update progress
-    const totalTime = Date.now() - currentProject.progress.startTime;
-    currentProject.progress.estimatedTime = Math.round(totalTime / 1000);
+    // Update progress completion
+    currentProject.progress.stepProgress = 100;
     currentProject.progress.message = 'Documentation generation completed!';
     
-    console.log(`Project ${projectId} completed successfully in ${currentProject.progress.estimatedTime}s (${mode.toUpperCase()})`);
+    console.log(`Project ${projectId} completed successfully (${mode.toUpperCase()})`);
     console.log('Final project data:', {
       id: currentProject.id,
       projectName: currentProject.projectName,
@@ -1875,7 +1775,8 @@ async function generateAIReadme(documentation, packageInfo, mainFile, mode = 'v2
     // Handle specific Gemini API errors
     if (error.message.includes('404 Not Found') || error.message.includes('models/')) {
       console.error('   This model may not be available. Try updating GEMINI_MODEL in your .env file.');
-      console.error('   Available models: gemini-1.5-flash, gemini-1.5-pro, gemini-pro');
+      console.error('   Available models: gemini-1.5-flash, gemini-1.5-pro');
+      console.error('   Note: gemini-pro is deprecated. Use gemini-1.5-flash or gemini-1.5-pro instead.');
     }
     
     throw error;
@@ -2457,6 +2358,9 @@ app.get('*', (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`GitGen server running on port ${PORT}`);
-  console.log(`Visit http://localhost:${PORT} to use the application`);
+  console.log(`🚀 GitGen server running on port ${PORT}`);
+  console.log(`📱 Frontend available at: http://localhost:${PORT}`);
+  console.log(`🔧 API available at: http://localhost:${PORT}/api`);
+  console.log(`🐛 Debug page at: http://localhost:${PORT}/debug`);
+  console.log(`📚 For AI setup help, see: GEMINI_CONFIG.md`);
 });
