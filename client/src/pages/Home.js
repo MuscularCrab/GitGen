@@ -485,7 +485,7 @@ const Home = () => {
                  </p>
                </div>
                <div className="flex flex-col sm:flex-row items-center justify-center space-y-2 sm:space-y-0 sm:space-x-6 text-sm text-gray-500 dark:text-gray-400">
-                 <span>© 2024 Ventris Labs. All rights reserved.</span>
+                 <span>© 2025 Ventris Labs. All rights reserved.</span>
                  <span>•</span>
                  <span>Built with React & Node.js</span>
                  <span>•</span>

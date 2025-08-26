@@ -1531,9 +1531,121 @@ function detectProjectFeatures(documentation) {
   if (hasChai) features.push('Chai assertion library for expressive testing');
   if (hasSinon) features.push('Sinon for mocking, stubbing and spying');
   if (hasSupertest) features.push('Supertest for API testing and assertions');
-  if (hasESLint) features.push('ESLint for code quality enforcement');
+  
+  // Add project complexity indicators
+  if (totalFiles > 100) features.push('Large-scale project with extensive codebase');
+  if (totalFiles > 50) features.push('Medium-sized project with good structure');
+  if (languages.length > 3) features.push('Multi-language project with diverse tech stack');
+  if (hasTypeScript && hasJavaScript) features.push('Hybrid TypeScript/JavaScript development');
+  if (hasReact && hasExpress) features.push('Full-stack JavaScript/Node.js application');
+  if (hasPython && hasJavaScript) features.push('Full-stack Python/JavaScript application');
+  
+  // Add architecture patterns
+  if (hasReact && hasExpress) features.push('Modern full-stack architecture with separated concerns');
+  if (hasDocker && hasCI) features.push('Production-ready deployment with automated CI/CD');
+  if (hasTesting && hasLinting) features.push('Quality-focused development with testing and linting');
+  if (hasAuthentication && hasValidation) features.push('Secure application with input validation');
+  if (hasMonitoring && hasLogging) features.push('Observable application with comprehensive logging');
+  
+  // Add performance and scalability features
+  if (hasCaching && hasCompression) features.push('Performance-optimized with caching and compression');
+  if (hasRateLimiting && hasHelmet) features.push('Security-hardened with rate limiting and security headers');
+  if (hasWebSocket && hasGraphQL) features.push('Modern API design with real-time capabilities');
   
   return features;
+}
+
+// Generate comprehensive configuration examples
+function generateConfigurationExamples(packageInfo, documentation) {
+  const examples = [];
+  
+  // Environment variables example
+  if (documentation.files.some(f => f.path.includes('.env') || f.path.includes('config'))) {
+    examples.push(`## Environment Variables (.env)
+\`\`\`env
+# Server Configuration
+PORT=3000
+NODE_ENV=development
+
+# Database Configuration
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=myapp
+DB_USER=username
+DB_PASSWORD=password
+
+# API Keys (replace with your actual keys)
+API_KEY=your_api_key_here
+SECRET_KEY=your_secret_key_here
+
+# Optional: AI Configuration
+GEMINI_API_KEY=your_gemini_api_key
+GEMINI_MODEL=gemini-1.5-flash
+\`\`\``);
+  }
+  
+  // Package.json scripts example
+  if (packageInfo && packageInfo.scripts) {
+    const scriptExamples = Object.entries(packageInfo.scripts)
+      .map(([name, script]) => `  "${name}": "${script}"`)
+      .join('\n');
+    
+    examples.push(`## Package.json Scripts
+\`\`\`json
+{
+  "scripts": {
+${scriptExamples}
+  }
+}
+\`\`\``);
+  }
+  
+  // Docker configuration example
+  if (documentation.files.some(f => f.path.includes('dockerfile') || f.path.includes('docker-compose'))) {
+    examples.push(`## Docker Configuration
+\`\`\`dockerfile
+# Dockerfile
+FROM node:18-alpine
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --only=production
+COPY . .
+EXPOSE 3000
+CMD ["npm", "start"]
+\`\`\`
+
+\`\`\`yaml
+# docker-compose.yml
+version: '3.8'
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+    volumes:
+      - ./logs:/app/logs
+\`\`\``);
+  }
+  
+  // Testing configuration example
+  if (documentation.files.some(f => f.path.includes('jest') || f.path.includes('vitest') || f.path.includes('cypress'))) {
+    examples.push(`## Testing Configuration
+\`\`\`javascript
+// jest.config.js
+module.exports = {
+  testEnvironment: 'node',
+  collectCoverage: true,
+  coverageDirectory: 'coverage',
+  coverageReporters: ['text', 'lcov', 'html'],
+  testMatch: ['**/__tests__/**/*.js', '**/?(*.)+(spec|test).js'],
+  setupFilesAfterEnv: ['<rootDir>/tests/setup.js']
+};
+\`\`\``);
+  }
+  
+  return examples.join('\n\n');
 }
 
 // Generate intelligent installation commands
@@ -1586,6 +1698,15 @@ function generateUsageCommands(packageInfo, mainFile, documentation) {
     if (packageInfo.scripts.test) {
       commands.push('# Run tests\nnpm test');
     }
+    if (packageInfo.scripts.lint) {
+      commands.push('# Run linting\nnpm run lint');
+    }
+    if (packageInfo.scripts.format) {
+      commands.push('# Format code\nnpm run format');
+    }
+    if (packageInfo.scripts.coverage) {
+      commands.push('# Run tests with coverage\nnpm run coverage');
+    }
   }
   
   // Check for Python main files
@@ -1604,6 +1725,118 @@ function generateUsageCommands(packageInfo, mainFile, documentation) {
   }
   
   return commands;
+}
+
+// Generate enhanced project structure with explanations
+function generateEnhancedProjectStructure(documentation) {
+  const structure = [];
+  const directories = {};
+  
+  // Group files by directory
+  documentation.structure.forEach(item => {
+    const parts = item.split('/');
+    const dir = parts.slice(0, -1).join('/');
+    const file = parts[parts.length - 1];
+    
+    if (dir) {
+      if (!directories[dir]) {
+        directories[dir] = [];
+      }
+      directories[dir].push(file);
+    } else {
+      if (!directories['root']) {
+        directories['root'] = [];
+      }
+      directories['root'].push(file);
+    }
+  });
+  
+  // Generate structure with explanations
+  Object.entries(directories).forEach(([dir, files]) => {
+    const dirName = dir === 'root' ? 'Project Root' : dir;
+    const description = getDirectoryDescription(dir, files);
+    
+    structure.push(`📁 **${dirName}** - ${description}`);
+    files.slice(0, 10).forEach(file => {
+      const fileDesc = getFileDescription(file);
+      structure.push(`  📄 ${file} - ${fileDesc}`);
+    });
+    
+    if (files.length > 10) {
+      structure.push(`  ... and ${files.length - 10} more files`);
+    }
+  });
+  
+  return structure.join('\n');
+}
+
+// Get directory description based on contents
+function getDirectoryDescription(dir, files) {
+  const dirLower = dir.toLowerCase();
+  const fileExtensions = files.map(f => f.split('.').pop()).filter(ext => ext.length < 10);
+  
+  if (dirLower.includes('src') || dirLower.includes('source')) return 'Source code directory';
+  if (dirLower.includes('test') || dirLower.includes('spec')) return 'Test files and specifications';
+  if (dirLower.includes('docs') || dirLower.includes('documentation')) return 'Documentation and guides';
+  if (dirLower.includes('config') || dirLower.includes('conf')) return 'Configuration files';
+  if (dirLower.includes('public') || dirLower.includes('static')) return 'Public assets and static files';
+  if (dirLower.includes('dist') || dirLower.includes('build')) return 'Build output and distribution';
+  if (dirLower.includes('scripts') || dirLower.includes('bin')) return 'Utility scripts and executables';
+  if (dirLower.includes('migrations') || dirLower.includes('db')) return 'Database migrations and schemas';
+  if (dirLower.includes('api') || dirLower.includes('routes')) return 'API endpoints and routing';
+  if (dirLower.includes('components') || dirLower.includes('ui')) return 'UI components and interfaces';
+  if (dirLower.includes('utils') || dirLower.includes('helpers')) return 'Utility functions and helpers';
+  if (dirLower.includes('middleware') || dirLower.includes('interceptors')) return 'Middleware and interceptors';
+  if (dirLower.includes('models') || dirLower.includes('entities')) return 'Data models and entities';
+  if (dirLower.includes('services') || dirLower.includes('business')) return 'Business logic and services';
+  if (dirLower.includes('types') || dirLower.includes('interfaces')) return 'Type definitions and interfaces';
+  
+  // Infer from file extensions
+  if (fileExtensions.some(ext => ['js', 'ts', 'jsx', 'tsx'].includes(ext))) return 'JavaScript/TypeScript source files';
+  if (fileExtensions.some(ext => ['py'].includes(ext))) return 'Python source files';
+  if (fileExtensions.some(ext => ['java'].includes(ext))) return 'Java source files';
+  if (fileExtensions.some(ext => ['css', 'scss', 'sass'].includes(ext))) return 'Styling and CSS files';
+  if (fileExtensions.some(ext => ['json', 'yaml', 'yml', 'toml'].includes(ext))) return 'Configuration and data files';
+  if (dirLower.includes('md') || dirLower.includes('txt')) return 'Documentation and text files';
+  
+  return 'Project files and resources';
+}
+
+// Get file description based on filename and extension
+function getFileDescription(filename) {
+  const ext = filename.split('.').pop().toLowerCase();
+  const name = filename.toLowerCase();
+  
+  // Package managers
+  if (name.includes('package.json')) return 'Node.js package configuration';
+  if (name.includes('requirements.txt')) return 'Python dependencies';
+  if (name.includes('pom.xml')) return 'Maven project configuration';
+  if (name.includes('build.gradle')) return 'Gradle build configuration';
+  
+  // Configuration files
+  if (name.includes('.env')) return 'Environment variables';
+  if (name.includes('config')) return 'Application configuration';
+  if (name.includes('dockerfile')) return 'Docker container definition';
+  if (name.includes('docker-compose')) return 'Docker services configuration';
+  
+  // Documentation
+  if (name.includes('readme')) return 'Project documentation';
+  if (name.includes('license')) return 'Project license';
+  if (name.includes('changelog')) return 'Version history and changes';
+  if (name.includes('contributing')) return 'Contribution guidelines';
+  
+  // Source files by extension
+  if (['js', 'ts', 'jsx', 'tsx'].includes(ext)) return 'JavaScript/TypeScript source code';
+  if (['py'].includes(ext)) return 'Python source code';
+  if (['java'].includes(ext)) return 'Java source code';
+  if (['css', 'scss', 'sass'].includes(ext)) return 'Stylesheet file';
+  if (['html', 'htm'].includes(ext)) return 'HTML markup file';
+  if (['json'].includes(ext)) return 'JSON data file';
+  if (['yaml', 'yml'].includes(ext)) return 'YAML configuration file';
+  if (['md'].includes(ext)) return 'Markdown documentation';
+  if (['txt'].includes(ext)) return 'Text file';
+  
+  return 'Project file';
 }
 
 // Generate intelligent project structure description
@@ -1799,8 +2032,8 @@ function buildAIPrompt(documentation, packageInfo, mainFile) {
   // Get sample code snippets for context
   const codeSnippets = documentation.files
     .filter(f => f.raw && f.raw.length > 50)
-    .slice(0, 5)
-    .map(f => `File: ${f.path}\n${f.raw.substring(0, 200)}...`)
+    .slice(0, 8)
+    .map(f => `File: ${f.path}\n${f.raw.substring(0, 300)}...`)
     .join('\n\n');
   
   // Get detected features
@@ -1809,7 +2042,36 @@ function buildAIPrompt(documentation, packageInfo, mainFile) {
   // Get testing framework information for better AI context
   const testingInfo = detectTestingFramework(documentation, packageInfo);
   
-  const prompt = `You are an expert software developer and technical writer specializing in creating professional, comprehensive README.md files for GitHub repositories. Your goal is to create READMEs that match the quality and comprehensiveness of top-tier open source projects.
+  // Get configuration examples
+  const configExamples = generateConfigurationExamples(packageInfo, documentation);
+  
+  // Get project structure for better context
+  const projectStructure = generateEnhancedProjectStructure(documentation);
+  
+  // Get dependencies and scripts for comprehensive documentation
+  const dependencies = [];
+  const devDependencies = [];
+  const scripts = [];
+  
+  if (packageInfo) {
+    if (packageInfo.dependencies) {
+      Object.entries(packageInfo.dependencies).forEach(([name, version]) => {
+        dependencies.push(`${name}@${version}`);
+      });
+    }
+    if (packageInfo.devDependencies) {
+      Object.entries(packageInfo.devDependencies).forEach(([name, version]) => {
+        devDependencies.push(`${name}@${version}`);
+      });
+    }
+    if (packageInfo.scripts) {
+      Object.entries(packageInfo.scripts).forEach(([name, script]) => {
+        scripts.push(`"${name}": "${script}"`);
+      });
+    }
+  }
+  
+  const prompt = `You are an expert software developer and technical writer specializing in creating professional, comprehensive README.md files for GitHub repositories. Your goal is to create READMEs that match the quality and comprehensiveness of top-tier open source projects like those created by Cursor AI, with extensive detail and practical examples.
 
 Generate a comprehensive, professional README.md file for a software project based on the following analysis:
 
@@ -1826,6 +2088,11 @@ TECHNICAL ANALYSIS:
 - Total Directories: ${totalDirs}
 - Detected Features: ${features.join(', ')}
 
+DEPENDENCIES & SCRIPTS:
+- Production Dependencies: ${dependencies.join(', ') || 'None detected'}
+- Development Dependencies: ${devDependencies.join(', ') || 'None detected'}
+- Available Scripts: ${scripts.join(', ') || 'None detected'}
+
 TESTING FRAMEWORK ANALYSIS:
 - Primary Framework: ${testingInfo.framework || 'Standard Testing'}
 - Framework Description: ${testingInfo.description || 'Comprehensive testing capabilities'}
@@ -1834,8 +2101,14 @@ TESTING FRAMEWORK ANALYSIS:
 - Test Files: ${testingInfo.testFiles.length} test files detected
 - Test Scripts: ${testingInfo.testScripts.length} test scripts available
 
+PROJECT STRUCTURE:
+${projectStructure}
+
 CODE SAMPLES:
 ${codeSnippets}
+
+CONFIGURATION EXAMPLES:
+${configExamples}
 
 REQUIREMENTS - Create a README that is:
 
@@ -1844,60 +2117,84 @@ REQUIREMENTS - Create a README that is:
 3. **PROFESSIONAL**: Match the quality of top GitHub repositories (React, Vue, Express, etc.)
 4. **USER-FRIENDLY**: Clear installation steps, usage examples, and configuration
 5. **DEVELOPER-FOCUSED**: Include API documentation, architecture details, and contribution guidelines
+6. **EXTENSIVE**: Make it at least 5-6 times more comprehensive than a basic README
 
 MANDATORY SECTIONS TO INCLUDE:
 
 **Header & Badges:**
 - Project title with clear description
-- Multiple badges (version, license, build status, coverage, etc.)
+- Multiple badges (version, license, build status, coverage, downloads, stars, etc.)
 - Quick start section with immediate value
+- Project status and maintenance information
 
 **Core Sections:**
-- 🚀 Quick Start (get running in 2-3 commands)
-- 📋 Table of Contents (comprehensive navigation)
-- ✨ Features (detailed feature list with emojis)
-- 📦 Installation (prerequisites + step-by-step)
-- 🎯 Usage (basic + advanced examples)
-- 🔍 Code Analysis (languages, patterns, architecture)
-- 📚 API Reference (functions, endpoints, examples)
-- 🏗️ Project Structure (visual file tree)
-- 🤝 Contributing (detailed contribution guide)
+- 🚀 Quick Start (get running in 2-3 commands with copy-paste examples)
+- 📋 Table of Contents (comprehensive navigation with anchor links)
+- ✨ Features (detailed feature list with emojis and descriptions)
+- 🎯 What This Project Does (clear explanation of purpose and value)
+- 📦 Prerequisites (system requirements, Node.js version, etc.)
+- 🔧 Installation (prerequisites + step-by-step with troubleshooting)
+- 🎯 Usage (basic + advanced examples with real code snippets)
+- 🔍 Code Analysis (languages, patterns, architecture, design decisions)
+- 📚 API Reference (functions, endpoints, examples, parameters)
+- 🏗️ Project Structure (visual file tree with explanations)
+- ⚙️ Configuration (environment variables, config files, options)
 - 🧪 Testing (comprehensive testing documentation)
-- 🚀 Deployment (production + Docker)
-- 🔧 Troubleshooting (common issues + solutions)
+- 🚀 Deployment (production + Docker + cloud platforms)
+- 🔧 Troubleshooting (common issues + solutions + debugging)
 - 📄 License (clear licensing information)
-- 💬 Support (community + contact info)
+- 💬 Support (community + contact info + issue templates)
+- 🤝 Contributing (detailed contribution guide with PR templates)
 
 **Advanced Features:**
-- Configuration examples with .env files
-- Docker deployment instructions
-- CI/CD setup suggestions
-- Performance considerations
-- Security best practices
-- Browser compatibility (if applicable)
-- Mobile considerations (if applicable)
+- Configuration examples with .env files and sample configurations
+- Docker deployment instructions with docker-compose examples
+- CI/CD setup suggestions with GitHub Actions examples
+- Performance considerations and optimization tips
+- Security best practices and vulnerability scanning
+- Browser compatibility matrix (if applicable)
+- Mobile considerations and responsive design notes
+- Internationalization support (if applicable)
+- Accessibility considerations (if applicable)
+- SEO optimization tips (if applicable)
 
 **Testing Section Requirements (🧪 Testing):**
 The testing section must be comprehensive and include:
 - **Testing Framework Details**: Specific framework name, version, and description
-- **Test Commands**: All available test scripts from package.json (test, test:watch, test:coverage, etc.)
+- **Test Commands**: All available test scripts from package.json with examples
 - **Code Coverage Information**: Current coverage metrics, coverage goals, and coverage tools used
-- **Test Structure**: Organization of test files (unit, integration, e2e tests)
+- **Test Structure**: Organization of test files (unit, integration, e2e tests) with examples
 - **Testing Best Practices**: Guidelines for writing and running tests
 - **Test Configuration**: Environment variables and configuration options
 - **Continuous Integration**: How tests are run in CI/CD pipelines
 - **Debugging Tests**: Commands for troubleshooting test issues
 - **Test Examples**: Sample test code snippets if applicable
+- **Performance Testing**: Load testing and benchmarking if applicable
 
 **Specific Testing Requirements:**
 Based on the detected testing framework (${testingInfo.framework}), ensure the testing section includes:
-- **Framework-specific commands** and configuration
+- **Framework-specific commands** and configuration with examples
 - **Coverage reporting** using ${testingInfo.coverage || 'standard coverage tools'}
 - **Test organization** based on the ${testingInfo.testFiles.length} detected test files
 - **Available test scripts** from package.json (${testingInfo.testScripts.length} found)
 - **Testing patterns** and best practices for the detected framework
-- **Integration with CI/CD** pipelines
+- **Integration with CI/CD** pipelines with configuration examples
 - **Debugging and troubleshooting** specific to the testing setup
+
+**Architecture & Design Section:**
+- System architecture overview with diagrams or descriptions
+- Design patterns used in the project
+- Data flow and component relationships
+- Scalability considerations
+- Security architecture
+- Performance characteristics
+
+**Development Workflow:**
+- Development environment setup
+- Code style and linting rules
+- Git workflow and branching strategy
+- Release process and versioning
+- Changelog maintenance
 
 **Formatting Requirements:**
 - Use emojis for section headers (🚀, 📦, 🎯, etc.)
@@ -1907,26 +2204,32 @@ Based on the detected testing framework (${testingInfo.framework}), ensure the t
 - Include proper anchor links in table of contents
 - Use bold text for important information
 - Include practical examples and use cases
+- Add collapsible sections for long content
+- Use callouts and warnings for important notes
 
 **Tone & Style:**
 - Professional yet approachable
 - Clear and concise language
-- Actionable instructions
+- Actionable instructions with copy-paste examples
 - Encouraging for contributors
 - Helpful for new users
 - Comprehensive for advanced users
+- Include real-world usage scenarios
 
-The README should be production-ready and immediately usable. It should make developers want to use, contribute to, and star the project. Focus on being helpful, comprehensive, and professional.
+The README should be production-ready and immediately usable. It should make developers want to use, contribute to, and star the project. Focus on being helpful, comprehensive, and professional. This should be the most detailed and useful README possible, similar to what you'd see in enterprise-level open source projects.
 
-Generate only the README content in Markdown format, starting with the title. Make it at least 3-4 times more comprehensive than a basic README.`;
+Generate only the README content in Markdown format, starting with the title. Make it extremely comprehensive and detailed.`;
 
   return prompt;
 }
 
-// Build simple, focused AI prompt for README generation (v2 - beginner-friendly)
+// Build enhanced AI prompt for README generation (v2 - beginner-friendly but comprehensive)
 function buildAIPromptV2(documentation, packageInfo, mainFile) {
   const projectName = packageInfo?.name || 'Project';
   const description = packageInfo?.description || '';
+  const version = packageInfo?.version || '1.0.0';
+  const author = packageInfo?.author || 'Developer';
+  const license = packageInfo?.license || 'MIT';
   
   // Extract key information for the AI
   const languages = Object.keys(documentation.summary.languages || {});
@@ -1934,69 +2237,127 @@ function buildAIPromptV2(documentation, packageInfo, mainFile) {
   const totalDirs = documentation.summary.totalDirectories || 0;
   
   // Get file tree structure
-  const fileTree = generateFileTree(documentation.structure);
+  const fileTree = generateEnhancedProjectStructure(documentation);
   
-  // Get key files content
+  // Get key files content with more context
   const keyFiles = documentation.files
     .filter(f => f.raw && f.raw.length > 50)
-    .slice(0, 3)
-    .map(f => `File: ${f.path}\nContent: ${f.raw.substring(0, 200)}...`)
+    .slice(0, 5)
+    .map(f => `File: ${f.path}\nContent: ${f.raw.substring(0, 300)}...`)
     .join('\n\n');
   
-  // Get dependencies
+  // Get dependencies and scripts
   const dependencies = [];
+  const devDependencies = [];
+  const scripts = [];
+  
   if (packageInfo) {
     if (packageInfo.dependencies) {
       Object.entries(packageInfo.dependencies).forEach(([name, version]) => {
-        dependencies.push(`${name} ${version}`);
+        dependencies.push(`${name}@${version}`);
       });
     }
     if (packageInfo.devDependencies) {
       Object.entries(packageInfo.devDependencies).forEach(([name, version]) => {
-        dependencies.push(`${name} ${version} (dev)`);
+        devDependencies.push(`${name}@${version}`);
+      });
+    }
+    if (packageInfo.scripts) {
+      Object.entries(packageInfo.scripts).forEach(([name, script]) => {
+        scripts.push(`"${name}": "${script}"`);
       });
     }
   }
   
+  // Get detected features for better context
+  const features = detectProjectFeatures(documentation);
+  
+  // Get configuration examples
+  const configExamples = generateConfigurationExamples(packageInfo, documentation);
+  
   // Check for existing docs
   const existingDocs = documentation.readme ? 'README.md (existing)' : 'No existing documentation';
   
-  const prompt = `You are GitGen, an AI documentation generator. 
-Your task is to generate a professional, beginner-friendly, and well-structured README.md file for the provided repository. 
-Follow GitHub README best practices, use clean Markdown, and make the output production-ready.
+  const prompt = `You are GitGen, an AI documentation generator specializing in creating comprehensive, professional README.md files. 
+Your task is to generate a detailed, well-structured, and production-ready README.md file for the provided repository. 
+Follow GitHub README best practices, use clean Markdown with emojis, and make the output comprehensive yet beginner-friendly.
 
 Repository Name: ${projectName}
 Description: ${description}
+Version: ${version}
+Author: ${author}
+License: ${license}
 
-File Tree:
+Technical Analysis:
+- Languages: ${languages.join(', ')}
+- Total Files: ${totalFiles}
+- Total Directories: ${totalDirs}
+- Detected Features: ${features.join(', ')}
+
+File Tree Structure:
 ${fileTree}
 
 Key Files and Contents (summarized or full text if small):
 ${keyFiles}
 
-Dependencies (from package.json, requirements.txt, etc.):
-${dependencies.join(', ') || 'No dependencies detected'}
+Dependencies:
+- Production: ${dependencies.join(', ') || 'None detected'}
+- Development: ${devDependencies.join(', ') || 'None detected'}
+- Scripts: ${scripts.join(', ') || 'None detected'}
 
-Existing Docs (if any):
+Existing Documentation:
 ${existingDocs}
+
+Configuration Examples:
+${configExamples}
 
 ---
 
 🛠️ Instructions for README generation:
-1. Start with a clear title and short project description.
-2. Add badges if relevant (build status, license, etc.).
-3. Create an Installation section with setup instructions based on dependencies.
-4. Add a Usage section with code snippets or command examples.
-5. If the project has services, configs, or scripts, document how to run them.
-6. Add a Features section if possible (infer from files and dependencies).
-7. Add a Contributing section if not already present.
-8. Add a License section (use LICENSE file if available).
-9. Format everything properly in Markdown with headings, lists, and code blocks.
 
-If project purpose is unclear, infer from context (file names, dependencies, comments) and state assumptions.
-Keep the tone concise, helpful, and professional.
+**Required Sections (in order):**
+1. **Header**: Clear title, description, and relevant badges
+2. **Quick Start**: Get users running in 2-3 commands
+3. **Features**: List key features with emojis and descriptions
+4. **Installation**: Prerequisites + step-by-step setup
+5. **Usage**: Basic + advanced examples with code snippets
+6. **Configuration**: Environment variables, config files, options
+7. **API Reference**: Functions, endpoints, examples (if applicable)
+8. **Project Structure**: Explain key directories and files
+9. **Testing**: How to run tests and coverage
+10. **Deployment**: Production deployment options
+11. **Contributing**: Guidelines for contributors
+12. **License**: Clear licensing information
+13. **Support**: Community and contact information
 
-Generate only the README content in Markdown format, starting with the title.`;
+**Content Requirements:**
+- Use emojis for section headers (🚀, 📦, 🎯, ✨, etc.)
+- Include code blocks with proper syntax highlighting
+- Add badges for build status, version, license, etc.
+- Use tables for structured information
+- Include practical examples and use cases
+- Make installation steps copy-paste ready
+- Add troubleshooting tips for common issues
+- Include configuration examples
+- Use proper anchor links in table of contents
+
+**Tone & Style:**
+- Professional yet approachable
+- Clear and concise language
+- Actionable instructions with examples
+- Helpful for new users
+- Comprehensive for advanced users
+- Encouraging for contributors
+
+**Special Instructions:**
+- If project purpose is unclear, infer from context and state assumptions
+- Include real-world usage scenarios
+- Add performance considerations if applicable
+- Include security notes if relevant
+- Add browser compatibility if applicable
+- Make it at least 3-4 times more comprehensive than a basic README
+
+Generate only the README content in Markdown format, starting with the title. Make it comprehensive, professional, and immediately useful.`;
 
   return prompt;
 }

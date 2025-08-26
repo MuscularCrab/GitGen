@@ -28,6 +28,35 @@ const ProjectDetail = () => {
   const [progress, setProgress] = useState(null);
   const [showExportDropdown, setShowExportDropdown] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [structureSearch, setStructureSearch] = useState('');
+
+  // Auto-expand folders when searching to show results
+  useEffect(() => {
+    if (structureSearch && currentProject?.documentation?.structure) {
+      const searchPaths = new Set();
+      const findSearchPaths = (struct, currentPath = '') => {
+        Object.entries(struct).forEach(([name, item]) => {
+          const fullPath = currentPath ? `${currentPath}/${name}` : name;
+          if (fullPath.toLowerCase().includes(structureSearch.toLowerCase()) ||
+              name.toLowerCase().includes(structureSearch.toLowerCase())) {
+            // Add this path and all parent paths
+            let parentPath = currentPath;
+            while (parentPath) {
+              searchPaths.add(parentPath);
+              const lastSlash = parentPath.lastIndexOf('/');
+              parentPath = lastSlash > 0 ? parentPath.substring(0, lastSlash) : '';
+            }
+          }
+          if (item.type === 'directory' && item.children) {
+            findSearchPaths(item.children, fullPath);
+          }
+        });
+      };
+      
+      findSearchPaths(currentProject.documentation.structure);
+      setExpandedFiles(prev => new Set([...prev, ...searchPaths]));
+    }
+  }, [structureSearch, currentProject?.documentation?.structure]);
 
   useEffect(() => {
     if (projectId) {
@@ -312,36 +341,141 @@ const ProjectDetail = () => {
   };
 
   const renderFileTree = (structure, path = '') => {
-    return Object.entries(structure).map(([name, item]) => {
+    if (!structure || Object.keys(structure).length === 0) {
+      return (
+        <div className="text-gray-500 italic py-2">
+          No files or directories found
+        </div>
+      );
+    }
+
+    // Filter items based on search
+    const filteredEntries = Object.entries(structure).filter(([name, item]) => {
+      if (!structureSearch) return true;
+      const fullPath = path ? `${path}/${name}` : name;
+      return fullPath.toLowerCase().includes(structureSearch.toLowerCase()) ||
+             name.toLowerCase().includes(structureSearch.toLowerCase());
+    });
+
+    if (filteredEntries.length === 0) {
+      return (
+        <div className="text-gray-500 italic py-2">
+          No items match your search: "{structureSearch}"
+        </div>
+      );
+    }
+
+    return filteredEntries.map(([name, item]) => {
       const fullPath = path ? `${path}/${name}` : name;
       const isExpanded = expandedFiles.has(fullPath);
       
       if (item.type === 'directory') {
+        // Count files and subdirectories in this directory
+        const childItems = item.children || {};
+        const fileCount = Object.values(childItems).filter(child => child.type === 'file').length;
+        const dirCount = Object.values(childItems).filter(child => child.type === 'directory').length;
+        const totalItems = fileCount + dirCount;
+        
         return (
-          <div key={fullPath} className="ml-4">
+          <div key={fullPath} className="border-l border-gray-200 ml-4">
             <button
               onClick={() => toggleFileExpansion(fullPath)}
-              className="flex items-center space-x-2 text-gray-700 hover:text-gray-900 py-1 w-full text-left"
+              className="flex items-center space-x-2 text-gray-700 hover:text-gray-900 py-2 px-2 w-full text-left rounded hover:bg-gray-50 transition-colors"
             >
-              <Folder className="w-4 h-4 text-blue-500" />
-              <span className="font-medium">{name}</span>
-              <span className="text-gray-400">/</span>
+              {/* Expand/collapse indicator */}
+              <div className="w-4 h-4 flex items-center justify-center">
+                {isExpanded ? (
+                  <svg className="w-3 h-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                ) : (
+                  <svg className="w-3 h-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                )}
+              </div>
+              
+              {/* Folder icon */}
+              <Folder className={`w-4 h-4 ${isExpanded ? 'text-blue-600' : 'text-blue-500'}`} />
+              
+              {/* Folder name */}
+              <span className={`font-medium ${isExpanded ? 'text-blue-700' : 'text-gray-700'}`}>
+                {name}
+              </span>
+              
+              {/* Item count badge */}
+              <span className="ml-auto text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full">
+                {totalItems} item{totalItems !== 1 ? 's' : ''}
+              </span>
+              
+              {/* Directory indicator */}
+              <span className="text-gray-400 text-xs">/</span>
             </button>
+            
+            {/* Expanded content with better visual hierarchy */}
             {isExpanded && item.children && (
-              <div className="ml-4">
+              <div className="ml-4 mt-1">
                 {renderFileTree(item.children, fullPath)}
               </div>
             )}
           </div>
         );
       } else {
+        // File item with enhanced display
+        const fileSize = item.size ? Math.round(item.size / 1024) : 0;
+        const fileExtension = name.split('.').pop()?.toLowerCase();
+        
+        // Get appropriate icon based on file type
+        const getFileIcon = (ext) => {
+          const iconClass = "w-4 h-4";
+          switch (ext) {
+            case 'js':
+            case 'ts':
+            case 'jsx':
+            case 'tsx':
+              return <Code className={`${iconClass} text-yellow-500`} />;
+            case 'css':
+            case 'scss':
+            case 'sass':
+              return <Code className={`${iconClass} text-pink-500`} />;
+            case 'html':
+            case 'htm':
+              return <Code className={`${iconClass} text-orange-500`} />;
+            case 'json':
+            case 'xml':
+            case 'yaml':
+            case 'yml':
+              return <Code className={`${iconClass} text-purple-500`} />;
+            case 'md':
+            case 'txt':
+              return <FileText className={`${iconClass} text-gray-500`} />;
+            case 'png':
+            case 'jpg':
+            case 'jpeg':
+            case 'gif':
+            case 'svg':
+              return <FileText className={`${iconClass} text-green-500`} />;
+            default:
+              return <FileText className={`${iconClass} text-gray-400`} />;
+          }
+        };
+        
         return (
-          <div key={fullPath} className="ml-4 flex items-center space-x-2 py-1">
-            <FileText className="w-4 h-4 text-green-500" />
-            <span className="text-gray-600">{name}</span>
-            <span className="text-xs text-gray-400">
-              ({Math.round(item.size / 1024)}KB)
-            </span>
+          <div key={fullPath} className="ml-4 py-1 px-2 hover:bg-gray-50 rounded transition-colors">
+            <div className="flex items-center space-x-2">
+              {/* File icon */}
+              {getFileIcon(fileExtension)}
+              
+              {/* File name */}
+              <span className="text-gray-700 font-mono text-sm">{name}</span>
+              
+              {/* File size */}
+              {fileSize > 0 && (
+                <span className="text-xs text-gray-500 ml-auto">
+                  {fileSize}KB
+                </span>
+              )}
+            </div>
           </div>
         );
       }
@@ -804,11 +938,147 @@ const ProjectDetail = () => {
 
         {activeTab === 'structure' && (
           <div className="card">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Repository Structure</h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Repository Structure</h3>
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => {
+                    // Expand all folders
+                    const allPaths = new Set();
+                    const expandAll = (struct, currentPath = '') => {
+                      Object.entries(struct).forEach(([name, item]) => {
+                        const fullPath = currentPath ? `${currentPath}/${name}` : name;
+                        if (item.type === 'directory') {
+                          allPaths.add(fullPath);
+                          if (item.children) {
+                            expandAll(item.children, fullPath);
+                          }
+                        }
+                      });
+                    };
+                    if (currentProject.documentation?.structure) {
+                      expandAll(currentProject.documentation.structure);
+                      setExpandedFiles(allPaths);
+                    }
+                  }}
+                  className="btn-secondary text-xs px-3 py-1"
+                >
+                  Expand All
+                </button>
+                <button
+                  onClick={() => setExpandedFiles(new Set())}
+                  className="btn-secondary text-xs px-3 py-1"
+                >
+                  Collapse All
+                </button>
+              </div>
+            </div>
+            
+            {/* Search and Structure info */}
+            {currentProject.documentation?.structure && (
+              <div className="space-y-4 mb-4">
+                {/* Search input */}
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="Search files and folders..."
+                    value={structureSearch}
+                    onChange={(e) => setStructureSearch(e.target.value)}
+                    className="w-full px-4 py-2 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                  <svg className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                  {structureSearch && (
+                    <button
+                      onClick={() => setStructureSearch('')}
+                      className="absolute right-3 top-2.5 w-4 h-4 text-gray-400 hover:text-gray-600"
+                    >
+                      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
+                
+                {/* Structure info */}
+                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="flex items-center space-x-2 text-sm text-blue-800 mb-2">
+                    <Folder className="w-4 h-4" />
+                    <span className="font-medium">Structure Overview</span>
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
+                    <div className="text-center">
+                      <div className="text-lg font-semibold text-blue-600">
+                        {Object.keys(currentProject.documentation.structure).length}
+                      </div>
+                      <div className="text-blue-700">Root Items</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-lg font-semibold text-blue-600">
+                        {Object.values(currentProject.documentation.structure).filter(item => item.type === 'directory').length}
+                      </div>
+                      <div className="text-blue-700">Directories</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-lg font-semibold text-blue-600">
+                        {Object.values(currentProject.documentation.structure).filter(item => item.type === 'file').length}
+                      </div>
+                      <div className="text-blue-700">Files</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-lg font-semibold text-blue-600">
+                        {expandedFiles.size}
+                      </div>
+                      <div className="text-blue-700">Expanded</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {/* File tree */}
             <div className="font-mono text-sm">
-              {currentProject.documentation?.structure && 
-                renderFileTree(currentProject.documentation.structure)
-              }
+              {currentProject.documentation?.structure ? (
+                <div>
+                  {/* Breadcrumb navigation */}
+                  {structureSearch && (
+                    <div className="mb-3 p-2 bg-yellow-50 border border-yellow-200 rounded-lg">
+                      <div className="flex items-center space-x-2 text-sm text-yellow-800">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                        <span>Search results for: <strong>"{structureSearch}"</strong></span>
+                        <span className="text-yellow-600">•</span>
+                        <span>Folders auto-expanded to show results</span>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Tree structure */}
+                  <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                    {renderFileTree(currentProject.documentation.structure)}
+                  </div>
+                  
+                  {/* Empty state when no search results */}
+                  {structureSearch && (
+                    <div className="mt-4 text-center text-sm text-gray-500">
+                      <p>Use the search above to find specific files or folders</p>
+                      <p>Click on folder names to expand/collapse them</p>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  <Folder className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+                  <p>No file structure available</p>
+                  <p className="text-sm mt-2">
+                    {currentProject.status === 'processing' 
+                      ? 'File structure will be available once processing is complete.'
+                      : 'File structure could not be generated for this project.'}
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -913,7 +1183,7 @@ const ProjectDetail = () => {
             </p>
           </div>
           <div className="flex flex-col sm:flex-row items-center justify-center space-y-2 sm:space-y-0 sm:space-x-6 text-sm text-gray-500 dark:text-gray-400">
-            <span>© 2024 Ventris Labs. All rights reserved.</span>
+            <span>© 2025 Ventris Labs. All rights reserved.</span>
             <span>•</span>
             <span>Built with React & Node.js</span>
             <span>•</span>
