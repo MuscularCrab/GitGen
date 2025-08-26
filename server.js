@@ -1729,52 +1729,79 @@ function generateUsageCommands(packageInfo, mainFile, documentation) {
 
 // Generate enhanced project structure with explanations
 function generateEnhancedProjectStructure(documentation) {
-  const structure = [];
-  const directories = {};
-  
-  // Group files by directory
-  documentation.structure.forEach(item => {
-    const parts = item.split('/');
-    const dir = parts.slice(0, -1).join('/');
-    const file = parts[parts.length - 1];
-    
-    if (dir) {
-      if (!directories[dir]) {
-        directories[dir] = [];
-      }
-      directories[dir].push(file);
-    } else {
-      if (!directories['root']) {
-        directories['root'] = [];
-      }
-      directories['root'].push(file);
-    }
-  });
-  
-  // Generate structure with explanations
-  Object.entries(directories).forEach(([dir, files]) => {
-    const dirName = dir === 'root' ? 'Project Root' : dir;
-    const description = getDirectoryDescription(dir, files);
-    
-    structure.push(`📁 **${dirName}** - ${description}`);
-    files.slice(0, 10).forEach(file => {
-      const fileDesc = getFileDescription(file);
-      structure.push(`  📄 ${file} - ${fileDesc}`);
+  if (!documentation.structure || typeof documentation.structure !== 'object') {
+    console.warn('Warning: Invalid or missing structure in documentation:', {
+      hasStructure: !!documentation.structure,
+      structureType: typeof documentation.structure,
+      structureKeys: documentation.structure ? Object.keys(documentation.structure) : 'none'
     });
-    
-    if (files.length > 10) {
-      structure.push(`  ... and ${files.length - 10} more files`);
-    }
+    return 'Project structure not available';
+  }
+  
+  console.log('Processing project structure:', {
+    rootKeys: Object.keys(documentation.structure),
+    structureType: typeof documentation.structure
   });
+
+  const structure = [];
+  
+  // Recursively process the structure object
+  const processStructure = (items, currentPath = '') => {
+    if (!items || typeof items !== 'object') return;
+    
+    try {
+      Object.entries(items).forEach(([name, item]) => {
+        if (!name || typeof name !== 'string') return;
+        
+        const fullPath = currentPath ? `${currentPath}/${name}` : name;
+        
+        if (item && item.type === 'directory') {
+          const description = getDirectoryDescription(name, item.children || {});
+          structure.push(`📁 **${fullPath}** - ${description}`);
+          
+          // Process children if they exist
+          if (item.children && typeof item.children === 'object' && Object.keys(item.children).length > 0) {
+            processStructure(item.children, fullPath);
+          }
+        } else if (item && item.type === 'file') {
+          const fileDesc = getFileDescription(name);
+          structure.push(`  📄 ${fullPath} - ${fileDesc}`);
+        }
+      });
+    } catch (error) {
+      console.warn('Warning: Error processing structure item:', error.message);
+      structure.push(`⚠️ Error processing structure item`);
+    }
+  };
+  
+  // Start processing from root
+  try {
+    processStructure(documentation.structure);
+  } catch (error) {
+    console.warn('Warning: Error processing project structure:', error.message);
+    structure.push('⚠️ Could not process project structure');
+  }
+  
+  // Limit the output to avoid overwhelming the AI
+  if (structure.length > 50) {
+    structure.splice(50);
+    structure.push('... and more files (structure truncated for brevity)');
+  }
+  
+  // If no structure was generated, provide a fallback
+  if (structure.length === 0) {
+    structure.push('📁 Project structure could not be analyzed');
+    structure.push('  📄 Files and directories present but not accessible');
+  }
   
   return structure.join('\n');
 }
 
 // Get directory description based on contents
-function getDirectoryDescription(dir, files) {
+function getDirectoryDescription(dir, children) {
   const dirLower = dir.toLowerCase();
-  const fileExtensions = files.map(f => f.split('.').pop()).filter(ext => ext.length < 10);
   
+  // Check directory name patterns first
   if (dirLower.includes('src') || dirLower.includes('source')) return 'Source code directory';
   if (dirLower.includes('test') || dirLower.includes('spec')) return 'Test files and specifications';
   if (dirLower.includes('docs') || dirLower.includes('documentation')) return 'Documentation and guides';
@@ -1791,13 +1818,31 @@ function getDirectoryDescription(dir, files) {
   if (dirLower.includes('services') || dirLower.includes('business')) return 'Business logic and services';
   if (dirLower.includes('types') || dirLower.includes('interfaces')) return 'Type definitions and interfaces';
   
-  // Infer from file extensions
-  if (fileExtensions.some(ext => ['js', 'ts', 'jsx', 'tsx'].includes(ext))) return 'JavaScript/TypeScript source files';
-  if (fileExtensions.some(ext => ['py'].includes(ext))) return 'Python source files';
-  if (fileExtensions.some(ext => ['java'].includes(ext))) return 'Java source files';
-  if (fileExtensions.some(ext => ['css', 'scss', 'sass'].includes(ext))) return 'Styling and CSS files';
-  if (fileExtensions.some(ext => ['json', 'yaml', 'yml', 'toml'].includes(ext))) return 'Configuration and data files';
-  if (dirLower.includes('md') || dirLower.includes('txt')) return 'Documentation and text files';
+  // Infer from children if available
+  if (children && typeof children === 'object') {
+    const fileExtensions = [];
+    const fileNames = [];
+    
+    Object.entries(children).forEach(([name, item]) => {
+      if (item.type === 'file') {
+        const ext = name.split('.').pop();
+        if (ext && ext.length < 10) fileExtensions.push(ext.toLowerCase());
+        fileNames.push(name.toLowerCase());
+      }
+    });
+    
+    // Infer from file extensions
+    if (fileExtensions.some(ext => ['js', 'ts', 'jsx', 'tsx'].includes(ext))) return 'JavaScript/TypeScript source files';
+    if (fileExtensions.some(ext => ['py'].includes(ext))) return 'Python source files';
+    if (fileExtensions.some(ext => ['java'].includes(ext))) return 'Java source files';
+    if (fileExtensions.some(ext => ['css', 'scss', 'sass'].includes(ext))) return 'Styling and CSS files';
+    if (fileExtensions.some(ext => ['json', 'yaml', 'yml', 'toml'].includes(ext))) return 'Configuration and data files';
+    
+    // Infer from file names
+    if (fileNames.some(name => name.includes('readme') || name.includes('license'))) return 'Documentation and project files';
+    if (fileNames.some(name => name.includes('dockerfile') || name.includes('docker-compose'))) return 'Docker configuration files';
+    if (fileNames.some(name => name.includes('package.json') || name.includes('requirements.txt'))) return 'Dependency and build configuration';
+  }
   
   return 'Project files and resources';
 }
@@ -2045,8 +2090,14 @@ function buildAIPrompt(documentation, packageInfo, mainFile) {
   // Get configuration examples
   const configExamples = generateConfigurationExamples(packageInfo, documentation);
   
-  // Get project structure for better context
-  const projectStructure = generateEnhancedProjectStructure(documentation);
+  // Get project structure for better context with error handling
+  let projectStructure = 'Project structure not available';
+  try {
+    projectStructure = generateEnhancedProjectStructure(documentation);
+  } catch (error) {
+    console.warn('Warning: Could not generate enhanced project structure for V1 prompt:', error.message);
+    projectStructure = 'Project structure could not be generated';
+  }
   
   // Get dependencies and scripts for comprehensive documentation
   const dependencies = [];
@@ -2236,8 +2287,14 @@ function buildAIPromptV2(documentation, packageInfo, mainFile) {
   const totalFiles = documentation.summary.totalFiles || 0;
   const totalDirs = documentation.summary.totalDirectories || 0;
   
-  // Get file tree structure
-  const fileTree = generateEnhancedProjectStructure(documentation);
+  // Get file tree structure with error handling
+  let fileTree = 'Project structure not available';
+  try {
+    fileTree = generateEnhancedProjectStructure(documentation);
+  } catch (error) {
+    console.warn('Warning: Could not generate enhanced project structure:', error.message);
+    fileTree = 'Project structure could not be generated';
+  }
   
   // Get key files content with more context
   const keyFiles = documentation.files
