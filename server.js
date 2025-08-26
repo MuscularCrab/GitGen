@@ -1388,10 +1388,19 @@ function detectProjectFeatures(documentation) {
   let hasPrettier = false;
   let hasHusky = false;
   let hasLintStaged = false;
+  let hasJavaScript = false;
+  
+  // Safety check for files array
+  if (!documentation.files || !Array.isArray(documentation.files)) {
+    console.warn('Warning: No files array found in documentation');
+    return features;
+  }
   
   documentation.files.forEach(file => {
+    if (!file || typeof file !== 'object') return;
+    
     const content = file.raw || '';
-    const path = file.path.toLowerCase();
+    const path = file.path?.toLowerCase() || '';
     
     // Framework detection
     if (content.includes('express') || content.includes('app.use') || content.includes('app.listen')) {
@@ -1425,6 +1434,9 @@ function detectProjectFeatures(documentation) {
     }
     if (file.extension === '.ts' || file.extension === '.tsx') {
       hasTypeScript = true;
+    }
+    if (file.extension === '.js' || file.extension === '.jsx') {
+      hasJavaScript = true;
     }
     if (file.extension === '.py') {
       hasPython = true;
@@ -2103,8 +2115,13 @@ function buildAIPrompt(documentation, packageInfo, mainFile) {
     .map(f => `File: ${f.path}\n${f.raw.substring(0, 300)}...`)
     .join('\n\n');
   
-  // Get detected features
-  const features = detectProjectFeatures(documentation);
+  // Get detected features with error handling
+  let features = ['Project features could not be detected'];
+  try {
+    features = detectProjectFeatures(documentation);
+  } catch (error) {
+    console.warn('Warning: Could not detect project features for V1 prompt:', error.message);
+  }
   
   // Get testing framework information for better AI context
   const testingInfo = detectTestingFramework(documentation, packageInfo);
@@ -2156,15 +2173,15 @@ PROJECT INFORMATION:
 - License: ${license}
 
 TECHNICAL ANALYSIS:
-- Languages: ${languages.join(', ')}
+- Languages: ${Array.isArray(languages) && languages.length > 0 ? languages.join(', ') : 'Not detected'}
 - Total Files: ${totalFiles}
 - Total Directories: ${totalDirs}
-- Detected Features: ${features.join(', ')}
+- Detected Features: ${Array.isArray(features) && features.length > 0 ? features.join(', ') : 'Not detected'}
 
 DEPENDENCIES & SCRIPTS:
-- Production Dependencies: ${dependencies.join(', ') || 'None detected'}
-- Development Dependencies: ${devDependencies.join(', ') || 'None detected'}
-- Available Scripts: ${scripts.join(', ') || 'None detected'}
+- Production Dependencies: ${Array.isArray(dependencies) && dependencies.length > 0 ? dependencies.join(', ') : 'None detected'}
+- Development Dependencies: ${Array.isArray(devDependencies) && devDependencies.length > 0 ? devDependencies.join(', ') : 'None detected'}
+- Available Scripts: ${Array.isArray(scripts) && scripts.length > 0 ? scripts.join(', ') : 'None detected'}
 
 TESTING FRAMEWORK ANALYSIS:
 - Primary Framework: ${testingInfo.framework || 'Standard Testing'}
@@ -2348,8 +2365,13 @@ function buildAIPromptV2(documentation, packageInfo, mainFile) {
     }
   }
   
-  // Get detected features for better context
-  const features = detectProjectFeatures(documentation);
+  // Get detected features for better context with error handling
+  let features = ['Project features could not be detected'];
+  try {
+    features = detectProjectFeatures(documentation);
+  } catch (error) {
+    console.warn('Warning: Could not detect project features for V2 prompt:', error.message);
+  }
   
   // Get configuration examples
   const configExamples = generateConfigurationExamples(packageInfo, documentation);
@@ -2368,21 +2390,21 @@ Author: ${author}
 License: ${license}
 
 Technical Analysis:
-- Languages: ${languages.join(', ')}
+- Languages: ${Array.isArray(languages) && languages.length > 0 ? languages.join(', ') : 'Not detected'}
 - Total Files: ${totalFiles}
 - Total Directories: ${totalDirs}
-- Detected Features: ${features.join(', ')}
+- Detected Features: ${Array.isArray(features) && features.length > 0 ? features.join(', ') : 'Not detected'}
 
 File Tree Structure:
-${fileTree}
+${fileTree || 'Project structure not available'}
 
 Key Files and Contents (summarized or full text if small):
-${keyFiles}
+${keyFiles || 'No key files available'}
 
 Dependencies:
-- Production: ${dependencies.join(', ') || 'None detected'}
-- Development: ${devDependencies.join(', ') || 'None detected'}
-- Scripts: ${scripts.join(', ') || 'None detected'}
+- Production: ${Array.isArray(dependencies) && dependencies.length > 0 ? dependencies.join(', ') : 'None detected'}
+- Development: ${Array.isArray(devDependencies) && devDependencies.length > 0 ? devDependencies.join(', ') : 'None detected'}
+- Scripts: ${Array.isArray(scripts) && scripts.length > 0 ? scripts.join(', ') : 'None detected'}
 
 Existing Documentation:
 ${existingDocs}
