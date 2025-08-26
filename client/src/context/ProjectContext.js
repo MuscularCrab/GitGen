@@ -226,14 +226,14 @@ export const ProjectProvider = ({ children }) => {
   const pollProjectStatus = useCallback(async (projectId) => {
     console.log(`Starting to poll project status for: ${projectId}`);
     let pollCount = 0;
-    const maxPolls = 15; // Maximum 15 polls (30 seconds total)
+    const maxPolls = 300; // Maximum 300 polls (5 minutes total) - increased from 15
     
     // Add a failsafe timeout that will force stop loading
     const failsafeTimeout = setTimeout(() => {
       console.log(`Failsafe timeout for project ${projectId} - forcing loading to false`);
       dispatch({ type: 'SET_ERROR', payload: 'Project processing timeout. Please check the project status manually.' });
       dispatch({ type: 'SET_LOADING', payload: false });
-    }, 30000); // 30 second failsafe
+    }, 300000); // 5 minute failsafe - increased from 30 seconds
     
     const pollInterval = setInterval(async () => {
       pollCount++;

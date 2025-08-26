@@ -3,7 +3,7 @@ import { useProjects } from '../context/ProjectContext';
 import { useNavigate } from 'react-router-dom';
 
 const Home = () => {
-  const { createProject } = useProjects();
+  const { createProject, error, clearError } = useProjects();
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     repoUrl: '',
@@ -88,9 +88,57 @@ const Home = () => {
             }
           }, 100);
         } else {
-          // Start monitoring for processing projects
+          // Start monitoring for processing projects - let ProjectContext handle this
           setFormData(prev => ({ ...prev, submitted: true, success: true }));
-          monitorProjectStatus(projectId);
+          
+          // Set up a simple redirect check that will work with ProjectContext monitoring
+          const checkCompletion = async () => {
+            try {
+              const response = await fetch(`/api/projects/${projectId}`);
+              if (response.ok) {
+                const projectData = await response.json();
+                if (projectData.status === 'completed') {
+                  console.log('Project completed, redirecting...');
+                  navigate(`/projects/${projectId}`);
+                } else if (projectData.status === 'failed') {
+                  alert(`Project failed: ${projectData.error || 'Unknown error'}`);
+                } else {
+                  // Still processing, check again in 3 seconds
+                  setTimeout(checkCompletion, 3000);
+                }
+              }
+            } catch (error) {
+              console.error('Error checking project completion:', error);
+              // Continue checking even if there's an error
+              setTimeout(checkCompletion, 5000);
+            }
+          };
+          
+          // Start checking for completion
+          setTimeout(checkCompletion, 3000);
+          
+          // Also start monitoring progress for display
+          const monitorProgress = async () => {
+            try {
+              const response = await fetch(`/api/projects/${projectId}/progress`);
+              if (response.ok) {
+                const progressData = await response.json();
+                setProcessingProgress(progressData);
+                
+                // Continue monitoring progress until completion
+                if (progressData.status !== 'completed' && progressData.status !== 'failed') {
+                  setTimeout(monitorProgress, 2000);
+                }
+              }
+            } catch (error) {
+              console.error('Error monitoring progress:', error);
+              // Continue monitoring even if there's an error
+              setTimeout(monitorProgress, 5000);
+            }
+          };
+          
+          // Start progress monitoring
+          setTimeout(monitorProgress, 1000);
         }
       } else {
         console.error('Invalid project response - no projectId found:', project);
@@ -102,48 +150,9 @@ const Home = () => {
     }
   };
 
-  const monitorProjectStatus = async (projectId) => {
-    try {
-      console.log(`Monitoring project ${projectId}...`);
-      const response = await fetch(`/api/projects/${projectId}/progress`);
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      const project = await response.json();
-      console.log('Project progress update:', project);
-      console.log('Project status:', project.status);
-      console.log('Project step:', project.step);
-      console.log('Project percentage:', project.percentage);
 
-      if (project.status === 'completed' || project.status === 'failed') {
-        console.log('AI generation completed, redirecting to project...', project.status);
-        if (project.status === 'completed') {
-          console.log('Redirecting to project detail page...');
-          // Add a small delay to ensure state updates are processed
-          setTimeout(() => {
-            try {
-              navigate(`/projects/${projectId}`);
-            } catch (navError) {
-              console.error('React Router navigation failed, using fallback:', navError);
-              window.location.href = `/projects/${projectId}`;
-            }
-          }, 100);
-        } else {
-          alert(`Project failed: ${project.message || 'Unknown error'}`);
-        }
-      } else {
-        console.log('Project still processing, continuing to monitor...');
-        setProcessingProgress(project);
-        // Continue monitoring every 2 seconds
-        setTimeout(() => monitorProjectStatus(projectId), 2000);
-      }
-    } catch (error) {
-      console.error('Error monitoring project status:', error);
-      // Continue monitoring even if there's an error
-      setTimeout(() => monitorProjectStatus(projectId), 5000);
-    }
-  };
+
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 transition-all duration-300">
@@ -309,6 +318,38 @@ const Home = () => {
               </div>
             </form>
 
+            {/* Error Display */}
+            {error && (
+              <div className="mt-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2 text-red-800 dark:text-red-200">
+                    <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                    </svg>
+                    <span className="font-medium">{error}</span>
+                  </div>
+                  <button
+                    onClick={clearError}
+                    className="text-red-400 hover:text-red-600 dark:text-red-300 dark:hover:text-red-100"
+                  >
+                    <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+                </div>
+                {error.includes('timeout') && (
+                  <div className="mt-3 text-sm text-red-700 dark:text-red-300">
+                    <p>Don't worry! Your project is still processing in the background. You can:</p>
+                    <ul className="mt-2 list-disc list-inside space-y-1">
+                      <li>Wait a few more minutes for processing to complete</li>
+                      <li>Check the <a href="/projects" className="underline hover:text-red-800">Projects page</a> to see the current status</li>
+                      <li>Refresh this page and try again</li>
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Success Message and Progress */}
             {formData.submitted && formData.success && (
               <div className="mt-6 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
@@ -327,7 +368,7 @@ const Home = () => {
                     <p className="mt-1 text-sm text-green-700 dark:text-green-300">
                       {processingProgress && processingProgress.status === 'completed'
                         ? 'This project has already been processed. Redirecting to view the generated documentation...'
-                        : 'We\'re analyzing your repository and generating comprehensive documentation. This may take a few minutes.'}
+                        : 'We\'re analyzing your repository and generating comprehensive documentation. This may take a few minutes. You can also check the <a href="/projects" className="underline hover:text-green-800">Projects page</a> to monitor progress.'}
                     </p>
                   </div>
                 </div>

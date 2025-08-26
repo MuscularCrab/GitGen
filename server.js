@@ -415,31 +415,9 @@ app.get('/api/projects/:projectId/progress', (req, res) => {
   const percentage = Math.round((project.progress.step / project.progress.totalSteps) * 100);
   let estimatedTime = null;
   
+  // Use intelligent ETA calculation based on repository analysis
   if (project.progress.startTime && project.progress.step > 0) {
-    const elapsed = Date.now() - project.progress.startTime;
-    const avgTimePerStep = elapsed / project.progress.step;
-    const remainingSteps = project.progress.totalSteps - project.progress.step;
-    
-    // Use a more conservative estimate and cap the ETA to prevent runaway values
-    const rawETA = Math.round((avgTimePerStep * remainingSteps) / 1000);
-    
-    // Cap ETA at reasonable values and use rolling average if available
-    if (project.progress.lastETA && project.progress.step > 1) {
-      // Use rolling average with previous ETA to smooth out fluctuations
-      const smoothingFactor = 0.7; // 70% weight to previous, 30% to current
-      estimatedTime = Math.round(
-        (project.progress.lastETA * smoothingFactor) + (rawETA * (1 - smoothingFactor))
-      );
-    } else {
-      estimatedTime = rawETA;
-    }
-    
-    // Cap ETA at reasonable maximum values
-    if (estimatedTime > 300) estimatedTime = 300; // Max 5 minutes
-    if (estimatedTime < 0) estimatedTime = 0;
-    
-    // Store current ETA for next calculation
-    project.progress.lastETA = estimatedTime;
+    estimatedTime = calculateIntelligentETA(project);
   }
   
   const response = {
@@ -449,10 +427,230 @@ app.get('/api/projects/:projectId/progress', (req, res) => {
     status: project.status || 'processing'
   };
   
+  // Add repository metrics if available for better progress display
+  if (project.repoMetrics) {
+    response.repoMetrics = {
+      totalFiles: project.repoMetrics.totalFiles,
+      totalDirectories: project.repoMetrics.totalDirectories,
+      totalSize: project.repoMetrics.totalSize,
+      languages: project.repoMetrics.languages,
+      fileTypes: project.repoMetrics.fileTypes
+    };
+  }
+  
   console.log(`Progress response for project ${projectId}:`, response);
   
   res.json(response);
 });
+
+// Get repository metrics for ETA calculation
+async function getRepositoryMetrics(repoPath) {
+  try {
+    const metrics = {
+      totalFiles: 0,
+      totalDirectories: 0,
+      totalSize: 0,
+      languages: new Set(),
+      fileTypes: new Set()
+    };
+    
+    async function scanDirectory(dirPath) {
+      try {
+        const items = await fs.readdir(dirPath);
+        
+        for (const item of items) {
+          if (item === '.git') continue;
+          
+          const fullPath = path.join(dirPath, item);
+          
+          try {
+            const stats = await fs.stat(fullPath);
+            
+            if (stats.isDirectory()) {
+              metrics.totalDirectories++;
+              await scanDirectory(fullPath);
+            } else {
+              metrics.totalFiles++;
+              metrics.totalSize += stats.size;
+              
+              // Detect language/file type
+              const ext = path.extname(item).toLowerCase();
+              if (ext) {
+                metrics.fileTypes.add(ext);
+                
+                // Map extensions to languages
+                const languageMap = {
+                  '.js': 'JavaScript', '.ts': 'TypeScript', '.jsx': 'React',
+                  '.tsx': 'React TypeScript', '.py': 'Python', '.java': 'Java',
+                  '.cpp': 'C++', '.c': 'C', '.cs': 'C#', '.php': 'PHP',
+                  '.rb': 'Ruby', '.go': 'Go', '.rs': 'Rust', '.swift': 'Swift',
+                  '.kt': 'Kotlin', '.scala': 'Scala', '.r': 'R', '.m': 'Objective-C',
+                  '.html': 'HTML', '.css': 'CSS', '.scss': 'SCSS', '.sass': 'Sass',
+                  '.vue': 'Vue', '.svelte': 'Svelte', '.json': 'JSON', '.xml': 'XML',
+                  '.yaml': 'YAML', '.yml': 'YAML', '.toml': 'TOML', '.ini': 'INI',
+                  '.md': 'Markdown', '.txt': 'Text', '.sql': 'SQL', '.sh': 'Shell',
+                  '.bat': 'Batch', '.ps1': 'PowerShell', '.dockerfile': 'Dockerfile'
+                };
+                
+                if (languageMap[ext]) {
+                  metrics.languages.add(languageMap[ext]);
+                }
+              }
+            }
+          } catch (error) {
+            // Skip files we can't access
+            console.log(`Skipping ${fullPath}: ${error.message}`);
+          }
+        }
+      } catch (error) {
+        console.log(`Error scanning directory ${dirPath}: ${error.message}`);
+      }
+    }
+    
+    await scanDirectory(repoPath);
+    
+    return {
+      totalFiles: metrics.totalFiles,
+      totalDirectories: metrics.totalDirectories,
+      totalSize: metrics.totalSize,
+      languages: Array.from(metrics.languages),
+      fileTypes: Array.from(metrics.fileTypes)
+    };
+  } catch (error) {
+    console.error('Error getting repository metrics:', error);
+    return {
+      totalFiles: 0,
+      totalDirectories: 0,
+      totalSize: 0,
+      languages: [],
+      fileTypes: []
+    };
+  }
+}
+
+// Calculate intelligent ETA based on repository size and complexity
+function calculateIntelligentETA(project) {
+  if (!project.progress || !project.progress.startTime) {
+    return null;
+  }
+
+  const elapsed = Date.now() - project.progress.startTime;
+  const currentStep = project.progress.step;
+  
+  // Base time estimates for each step (in milliseconds)
+  const stepTimeEstimates = {
+    1: 1000,    // Creating temp directory: ~1 second
+    2: 30000,   // Cloning: depends on repo size
+    3: 15000,   // Analyzing structure: depends on file count
+    4: 20000,   // Generating documentation: depends on complexity
+    5: 25000,   // AI README generation: depends on content
+    6: 5000     // Finalizing: ~5 seconds
+  };
+  
+  // Get repository metrics for better estimates
+  let totalFiles = 0;
+  let totalSize = 0;
+  let languages = 0;
+  
+  // Use repoMetrics if available (from step 3+), otherwise fall back to documentation summary
+  if (project.repoMetrics) {
+    totalFiles = project.repoMetrics.totalFiles || 0;
+    totalSize = project.repoMetrics.totalSize || 0;
+    languages = project.repoMetrics.languages?.length || 0;
+  } else if (project.documentation?.summary) {
+    totalFiles = project.documentation.summary.totalFiles || 0;
+    totalSize = project.documentation.summary.totalSize || 0;
+    languages = Object.keys(project.documentation.summary.languages || {}).length;
+  }
+  
+  // Adjust clone time based on repository size
+  if (currentStep >= 2) {
+    // Base clone time: 30 seconds for small repos, scales with size
+    const baseCloneTime = 30000;
+    
+    if (totalSize > 0) {
+      // If we have size info, use it for more accurate estimates
+      const sizeMultiplier = Math.min(totalSize / (1024 * 1024), 10); // Cap at 10x for very large repos
+      stepTimeEstimates[2] = Math.round(baseCloneTime * (1 + sizeMultiplier * 0.1));
+    } else {
+      // For step 2 (cloning), use a conservative estimate
+      // Small repos: 20-40 seconds, Medium: 40-80 seconds, Large: 80-120 seconds
+      stepTimeEstimates[2] = 60000; // Default to 1 minute for unknown size
+    }
+  }
+  
+  // Adjust analysis time based on file count
+  if (currentStep >= 3 && totalFiles > 0) {
+    // Base analysis time: 15 seconds, scales with file count
+    const baseAnalysisTime = 15000;
+    const fileMultiplier = Math.min(totalFiles / 100, 5); // Cap at 5x for very large repos
+    stepTimeEstimates[3] = Math.round(baseAnalysisTime * (1 + fileMultiplier * 0.2));
+  }
+  
+  // Adjust documentation generation time based on complexity
+  if (currentStep >= 4) {
+    const baseGenTime = 20000;
+    let complexityMultiplier = 1;
+    
+    if (totalFiles > 200) complexityMultiplier += 0.5;
+    if (languages > 5) complexityMultiplier += 0.3;
+    if (totalSize > 50 * 1024 * 1024) complexityMultiplier += 0.4; // 50MB+
+    
+    stepTimeEstimates[4] = Math.round(baseGenTime * complexityMultiplier);
+  }
+  
+  // Adjust AI generation time based on content complexity
+  if (currentStep >= 5) {
+    const baseAITime = 25000;
+    let aiMultiplier = 1;
+    
+    if (totalFiles > 100) aiMultiplier += 0.3;
+    if (languages > 3) aiMultiplier += 0.2;
+    if (project.mode === 'v1') aiMultiplier += 0.4; // Comprehensive mode takes longer
+    
+    stepTimeEstimates[5] = Math.round(baseAITime * aiMultiplier);
+  }
+  
+  // Calculate remaining time based on current step
+  let remainingTime = 0;
+  for (let step = currentStep + 1; step <= 6; step++) {
+    remainingTime += stepTimeEstimates[step] || 0;
+  }
+  
+  // Add some buffer time for network delays and processing variations
+  remainingTime = Math.round(remainingTime * 1.2);
+  
+  // Convert to seconds and apply reasonable bounds
+  let estimatedSeconds = Math.round(remainingTime / 1000);
+  
+  // Apply bounds: minimum 10 seconds, maximum 10 minutes
+  estimatedSeconds = Math.max(10, Math.min(600, estimatedSeconds));
+  
+  // Use rolling average if we have previous estimates to smooth fluctuations
+  if (project.progress.lastETA && currentStep > 1) {
+    const smoothingFactor = 0.6; // 60% weight to previous, 40% to current
+    estimatedSeconds = Math.round(
+      (project.progress.lastETA * smoothingFactor) + (estimatedSeconds * (1 - smoothingFactor))
+    );
+  }
+  
+  // Store for next calculation
+  project.progress.lastETA = estimatedSeconds;
+  
+  // Log ETA calculation details for debugging
+  console.log(`ETA calculation for project ${project.id}:`, {
+    step: currentStep,
+    totalFiles,
+    totalSize: totalSize ? `${Math.round(totalSize / (1024 * 1024))}MB` : 'unknown',
+    languages,
+    mode: project.mode,
+    stepEstimates: stepTimeEstimates,
+    remainingTime: `${Math.round(remainingTime / 1000)}s`,
+    finalETA: `${estimatedSeconds}s`
+  });
+  
+  return estimatedSeconds;
+}
 
 // Download generated README
 app.get('/api/projects/:projectId/readme', (req, res) => {
@@ -640,6 +838,11 @@ async function processRepository(projectId, repoUrl, mode = 'v2') {
     project.progress.step = 3;
     project.progress.message = 'Analyzing repository structure...';
     console.log(`Analyzing repository structure for: ${tempDir}`);
+    
+    // Get repository metrics for better ETA calculation
+    const repoMetrics = await getRepositoryMetrics(tempDir);
+    project.repoMetrics = repoMetrics;
+    console.log(`Repository metrics:`, repoMetrics);
 
     // Step 4: Generate documentation
     project.progress.currentStep = 'generating';

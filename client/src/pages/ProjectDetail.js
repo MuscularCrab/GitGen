@@ -14,7 +14,8 @@ import {
   Code,
   Download,
   Share2,
-  ExternalLink
+  ExternalLink,
+  ChevronDown
 } from 'lucide-react';
 import Loader from '../components/Loader';
 
@@ -25,12 +26,228 @@ const ProjectDetail = () => {
   const [expandedFiles, setExpandedFiles] = useState(new Set());
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [progress, setProgress] = useState(null);
+  const [showExportDropdown, setShowExportDropdown] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
   useEffect(() => {
     if (projectId) {
       loadProject(projectId);
     }
   }, [projectId, loadProject]);
+
+  // Close export dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showExportDropdown && !event.target.closest('.export-dropdown')) {
+        setShowExportDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showExportDropdown]);
+
+  // Handle export functionality
+  const handleExport = async (type = 'readme') => {
+    if (!currentProject?.documentation) {
+      alert('No documentation available to export');
+      return;
+    }
+
+    setIsExporting(true);
+    try {
+      let content, filename, contentType;
+      
+      switch (type) {
+        case 'readme':
+          if (!currentProject.documentation.generatedReadme) {
+            alert('No README available to export');
+            return;
+          }
+          content = currentProject.documentation.generatedReadme.raw;
+          filename = `${currentProject.projectName}-README.md`;
+          contentType = 'text/markdown';
+          break;
+          
+        case 'summary':
+          if (!currentProject.documentation.summary) {
+            alert('No project summary available to export');
+            return;
+          }
+          content = JSON.stringify(currentProject.documentation.summary, null, 2);
+          filename = `${currentProject.projectName}-summary.json`;
+          contentType = 'application/json';
+          break;
+          
+        case 'structure':
+          if (!currentProject.documentation.structure) {
+            alert('No project structure available to export');
+            return;
+          }
+          content = JSON.stringify(currentProject.documentation.structure, null, 2);
+          filename = `${currentProject.projectName}-structure.json`;
+          contentType = 'application/json';
+          break;
+          
+        case 'files':
+          if (!currentProject.documentation.files) {
+            alert('No file analysis available to export');
+            return;
+          }
+          content = JSON.stringify(currentProject.documentation.files, null, 2);
+          filename = `${currentProject.projectName}-files.json`;
+          contentType = 'application/json';
+          break;
+          
+        default:
+          alert('Invalid export type');
+          return;
+      }
+      
+      // Create and download file
+      const blob = new Blob([content], { type: contentType });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      // Close dropdown after export
+      setShowExportDropdown(false);
+      
+      // Show success message
+      const notification = document.createElement('div');
+      notification.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50';
+      notification.innerHTML = `
+        <div class="flex items-center space-x-2">
+          <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+          </svg>
+          <span>${filename} exported successfully!</span>
+          <button onclick="this.parentElement.parentElement.remove()" class="ml-2 text-white hover:text-gray-200">×</button>
+        </div>
+      `;
+      document.body.appendChild(notification);
+      
+      // Remove notification after 3 seconds
+      setTimeout(() => {
+        if (notification.parentNode) {
+          notification.parentNode.removeChild(notification);
+        }
+      }, 3000);
+      
+    } catch (error) {
+      console.error('Export error:', error);
+      alert('Failed to export. Please try again.');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  // Handle share functionality
+  const handleShare = async () => {
+    if (!currentProject?.documentation?.generatedReadme) {
+      alert('No documentation available to share');
+      return;
+    }
+
+    try {
+      // Try to use native Web Share API if available
+      if (navigator.share) {
+        await navigator.share({
+          title: `${currentProject.projectName} Documentation`,
+          text: `Check out the documentation for ${currentProject.projectName}`,
+          url: window.location.href
+        });
+      } else {
+        // Fallback: copy URL to clipboard
+        await navigator.clipboard.writeText(window.location.href);
+        
+        // Show success message
+        const notification = document.createElement('div');
+        notification.className = 'fixed top-4 right-4 bg-blue-500 text-white px-6 py-3 rounded-lg shadow-lg z-50';
+        notification.innerHTML = `
+          <div class="flex items-center space-x-2">
+            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+            </svg>
+            <span>Project URL copied to clipboard!</span>
+            <button onclick="this.parentElement.parentElement.remove()" class="ml-2 text-white hover:text-gray-200">×</button>
+          </div>
+        `;
+        document.body.appendChild(notification);
+        
+        // Remove notification after 3 seconds
+        setTimeout(() => {
+          if (notification.parentNode) {
+            notification.parentNode.removeChild(notification);
+          }
+        }, 3000);
+      }
+    } catch (error) {
+      console.error('Share error:', error);
+      // Fallback: copy URL to clipboard
+      try {
+        await navigator.clipboard.writeText(window.location.href);
+        // Show success message
+        const notification = document.createElement('div');
+        notification.className = 'fixed top-4 right-4 bg-blue-500 text-white px-6 py-3 rounded-lg shadow-lg z-50';
+        notification.innerHTML = `
+          <div class="flex items-center space-x-2">
+            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+            </svg>
+            <span>Project URL copied to clipboard!</span>
+            <button onclick="this.parentElement.parentElement.remove()" class="ml-2 text-white hover:text-gray-200">×</button>
+          </div>
+        `;
+        document.body.appendChild(notification);
+        
+        // Remove notification after 3 seconds
+        setTimeout(() => {
+          if (notification.parentNode) {
+            notification.parentNode.removeChild(notification);
+          }
+        }, 3000);
+      } catch (clipboardError) {
+        console.error('Clipboard error:', clipboardError);
+        alert('Failed to share. Please copy the URL manually.');
+      }
+    }
+  };
+
+  // Handle copying project URL to clipboard
+  const handleCopyUrl = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      alert('Project URL copied to clipboard!');
+    } catch (error) {
+      console.error('Copy error:', error);
+      alert('Failed to copy URL. Please copy it manually.');
+    }
+  };
+
+  // Format time in human-readable format
+  const formatTime = (seconds) => {
+    if (seconds < 60) {
+      return `~${seconds} seconds`;
+    } else if (seconds < 120) {
+      return `~${Math.round(seconds / 60)} minute`;
+    } else {
+      const minutes = Math.floor(seconds / 60);
+      const remainingSeconds = seconds % 60;
+      if (remainingSeconds === 0) {
+        return `~${minutes} minutes`;
+      } else {
+        return `~${minutes}m ${remainingSeconds}s`;
+      }
+    }
+  };
 
   // Fetch progress updates when processing
   const fetchProgress = useCallback(async () => {
@@ -270,11 +487,68 @@ const ProjectDetail = () => {
         </div>
         
         <div className="flex items-center space-x-2">
-          <button className="btn-secondary inline-flex items-center space-x-2">
-            <Download className="w-4 h-4" />
-            <span>Export</span>
-          </button>
-          <button className="btn-primary inline-flex items-center space-x-2">
+          {/* Export Dropdown */}
+          <div className="relative export-dropdown">
+            <button 
+              onClick={() => setShowExportDropdown(!showExportDropdown)}
+              disabled={!currentProject?.documentation || isExporting}
+              className="btn-secondary inline-flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isExporting ? (
+                <div className="loader w-4 h-4"></div>
+              ) : (
+                <Download className="w-4 h-4" />
+              )}
+              <span>{isExporting ? 'Exporting...' : 'Export'}</span>
+              {!isExporting && <ChevronDown className="w-4 h-4" />}
+            </button>
+            
+            {/* Export Dropdown Menu */}
+            {showExportDropdown && (
+              <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700 z-10">
+                <div className="py-1">
+                  <button
+                    onClick={() => handleExport('readme')}
+                    disabled={!currentProject?.documentation?.generatedReadme || isExporting}
+                    className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                  >
+                    <FileText className="w-4 h-4" />
+                    <span>README.md</span>
+                  </button>
+                  <button
+                    onClick={() => handleExport('summary')}
+                    disabled={!currentProject?.documentation?.summary || isExporting}
+                    className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                  >
+                    <BookOpen className="w-4 h-4" />
+                    <span>Project Summary</span>
+                  </button>
+                  <button
+                    onClick={() => handleExport('structure')}
+                    disabled={!currentProject?.documentation?.structure || isExporting}
+                    className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                  >
+                    <Folder className="w-4 h-4" />
+                    <span>Project Structure</span>
+                  </button>
+                  <button
+                    onClick={() => handleExport('files')}
+                    disabled={!currentProject?.documentation?.files || isExporting}
+                    className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                  >
+                    <Code className="w-4 h-4" />
+                    <span>File Analysis</span>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+          
+          <button 
+            onClick={handleShare}
+            disabled={!currentProject?.documentation?.generatedReadme}
+            className="btn-primary inline-flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
             <Share2 className="w-4 h-4" />
             <span>Share</span>
           </button>
@@ -373,12 +647,44 @@ const ProjectDetail = () => {
             <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
               <div className="flex items-center justify-between">
                 <span className="text-sm text-green-800">
-                  <strong>Estimated Time Remaining:</strong> ~{progress.estimatedTime} seconds
+                  <strong>Estimated Time Remaining:</strong> {formatTime(progress.estimatedTime)}
                 </span>
                 <span className="text-xs text-green-600">
                   {progress.estimatedTime < 60 ? `${progress.estimatedTime}s` : `${Math.round(progress.estimatedTime / 60)}m ${progress.estimatedTime % 60}s`}
                 </span>
               </div>
+            </div>
+          )}
+          
+          {/* Repository Metrics (when available) */}
+          {progress?.repoMetrics && (
+            <div className="mb-4 p-3 bg-purple-50 border border-purple-200 rounded-lg">
+              <h4 className="text-sm font-medium text-purple-800 mb-2">Repository Analysis</h4>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                <div className="text-center">
+                  <div className="text-lg font-semibold text-purple-600">{progress.repoMetrics.totalFiles}</div>
+                  <div className="text-purple-700">Files</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-lg font-semibold text-purple-600">{progress.repoMetrics.totalDirectories}</div>
+                  <div className="text-purple-700">Directories</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-lg font-semibold text-purple-600">
+                    {progress.repoMetrics.totalSize ? `${Math.round(progress.repoMetrics.totalSize / (1024 * 1024))}MB` : 'N/A'}
+                  </div>
+                  <div className="text-purple-700">Size</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-lg font-semibold text-purple-600">{progress.repoMetrics.languages?.length || 0}</div>
+                  <div className="text-purple-700">Languages</div>
+                </div>
+              </div>
+              {progress.repoMetrics.languages && progress.repoMetrics.languages.length > 0 && (
+                <div className="mt-2 text-xs text-purple-700">
+                  <strong>Languages detected:</strong> {progress.repoMetrics.languages.join(', ')}
+                </div>
+              )}
             </div>
           )}
           
