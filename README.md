@@ -19,8 +19,8 @@ A modern, feature-rich alternative to gitdocify.com that automatically generates
 
 ```bash
 # Clone the repository
-git clone <your-repo-url>
-cd gitgen
+git clone https://github.com/muscularcrab/GitGen.git
+cd GitGen
 
 # Build and run with Docker (recommended)
 sudo docker build -f Dockerfile.working -t gitgen .
@@ -57,8 +57,8 @@ See the [Deployment section](#-deployment) for detailed Docker instructions and 
 
 1. **Clone the repository**
    ```bash
-   git clone <your-repo-url>
-   cd gitgen
+   git clone https://github.com/muscularcrab/GitGen.git
+   cd GitGen
    ```
 
 2. **Install dependencies**
@@ -94,7 +94,7 @@ npm start
 
 ### 1. Create a New Project
 - Navigate to the home page
-- Enter your Git repository URL (supports GitHub, GitLab, Bitbucket, etc.)
+- Enter your Git repository URL (supports GitHub, GitLab, Bitbucket, and any Git-compatible hosting service)
 - Click "Generate Documentation" - the AI will analyze everything automatically
 
 ### 2. Monitor Progress
@@ -152,12 +152,12 @@ Access the debug page at `/debug` to test API connections and backend functional
 - [ ] **Deployment Guides**: Platform-specific deployment instructions
 
 ### 🎨 **UI/UX Improvements**
-- [ ] **Dark Mode**: Complete dark theme implementation
+- [x] **Dark Mode**: Complete dark theme implementation
 - [ ] **Mobile App**: React Native mobile application
 - [ ] **Keyboard Shortcuts**: Power user keyboard navigation
 - [ ] **Drag & Drop**: File upload and repository import
 - [ ] **Customizable Dashboard**: User-configurable project overview
-- [ ] **Progress Animations**: Enhanced loading and progress indicators
+- [x] **Progress Animations**: Enhanced loading and progress indicators
 
 ### 🔒 **Security & Compliance**
 - [ ] **Audit Logging**: Comprehensive activity logging
@@ -167,7 +167,7 @@ Access the debug page at `/debug` to test API connections and backend functional
 - [ ] **Role-based Access Control**: Granular permission system
 
 ### 📚 **Documentation & Support**
-- [ ] **API Documentation**: Complete API reference with examples
+- [x] **API Documentation**: Complete API reference with examples
 - [ ] **Video Tutorials**: Step-by-step video guides
 - [ ] **Community Forum**: User community and support platform
 - [ ] **Integration Guides**: Third-party service integrations
@@ -206,10 +206,12 @@ GEMINI_MAX_TOKENS=4000
 Get your API key from [Google AI Studio](https://makersuite.google.com/app/apikey).
 
 ### Supported Git Hosts
-- GitHub (https://github.com/username/repo)
-- GitLab (https://gitlab.com/username/repo)
-- Bitbucket (https://bitbucket.org/username/repo)
-- Any Git-compatible hosting service
+GitGen supports any Git-compatible hosting service, including:
+- **GitHub**: https://github.com/username/repo
+- **GitLab**: https://gitlab.com/username/repo  
+- **Bitbucket**: https://bitbucket.org/username/repo
+- **Self-hosted Git servers**: Any GitLab, Gitea, or custom Git server
+- **Local repositories**: File system paths to local Git repositories
 
 ## 🏗️ Project Structure
 
@@ -294,8 +296,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📞 Support
 
-- **Issues**: [GitHub Issues](https://github.com/yourusername/gitgen/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/yourusername/gitgen/discussions)
+- **Issues**: [GitHub Issues](https://github.com/muscularcrab/GitGen/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/muscularcrab/GitGen/discussions)
 - **Email**: support@gitgen.com
 
 ## 🔮 Roadmap
