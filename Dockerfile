@@ -22,11 +22,11 @@ RUN npm config set registry https://registry.npmjs.org/ && \
     npm config set fetch-retry-mintimeout 20000 && \
     npm config set fetch-retry-maxtimeout 120000
 
-# Install server dependencies with specific timeout and retry settings
-RUN npm ci --only=production --no-audit --no-fund --prefer-offline --timeout=300000
+# Install server dependencies with npm install (will update lock file)
+RUN npm install --production --no-audit --no-fund --timeout=300000
 
 # Install client dependencies
-RUN cd client && npm ci --only=production --no-audit --no-fund --prefer-offline --timeout=300000
+RUN cd client && npm install --production --no-audit --no-fund --timeout=300000
 
 # Copy source code
 COPY . .

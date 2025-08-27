@@ -21,8 +21,8 @@ RUN npm config set registry https://registry.npmjs.org/ && \
     npm config set fetch-timeout 300000
 
 # Install all dependencies (including dev dependencies)
-RUN npm ci --timeout=300000
-RUN cd client && npm ci --timeout=300000
+RUN npm install --timeout=300000
+RUN cd client && npm install --timeout=300000
 
 # Copy source code
 COPY . .
