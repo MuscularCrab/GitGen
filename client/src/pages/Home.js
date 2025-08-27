@@ -88,70 +88,63 @@ const Home = () => {
             }
           }, 100);
         } else {
-          // Start monitoring for processing projects - let ProjectContext handle this
+          // Start monitoring for processing projects
           setFormData(prev => ({ ...prev, submitted: true, success: true }));
           
-          // Set up a simple redirect check that will work with ProjectContext monitoring
-          const checkCompletion = async () => {
-            try {
-              const response = await fetch(`/api/projects/${projectId}`);
-              if (response.ok) {
-                const projectData = await response.json();
-                if (projectData.status === 'completed') {
-                  console.log('Project completed, redirecting...');
-                  navigate(`/projects/${projectId}`);
-                } else if (projectData.status === 'failed') {
-                  alert(`Project failed: ${projectData.error || 'Unknown error'}`);
-                } else {
-                  // Still processing, check again in 3 seconds
-                  setTimeout(checkCompletion, 3000);
-                }
-              }
-            } catch (error) {
-              console.error('Error checking project completion:', error);
-              // Continue checking even if there's an error
-              setTimeout(checkCompletion, 5000);
-            }
-          };
-          
-          // Start checking for completion
-          setTimeout(checkCompletion, 3000);
-          
-          // Also start monitoring progress for display
-          const monitorProgress = async () => {
-            try {
-              const response = await fetch(`/api/projects/${projectId}/progress`);
-              if (response.ok) {
-                const progressData = await response.json();
-                setProcessingProgress(progressData);
-                
-                // Continue monitoring progress until completion
-                if (progressData.status !== 'completed' && progressData.status !== 'failed') {
-                  setTimeout(monitorProgress, 2000);
-                }
-              }
-            } catch (error) {
-              console.error('Error monitoring progress:', error);
-              // Continue monitoring even if there's an error
-              setTimeout(monitorProgress, 5000);
-            }
-          };
-          
           // Start progress monitoring
-          setTimeout(monitorProgress, 1000);
+          startProgressMonitoring(projectId);
         }
       } else {
-        console.error('Invalid project response - no projectId found:', project);
-        alert('Invalid project response. Please try again.');
+        console.error('No project ID received:', project);
+        alert('Failed to create project. Please try again.');
       }
     } catch (error) {
       console.error('Error creating project:', error);
-      alert('Failed to create project. Please try again.');
+      alert('Failed to create project: ' + error.message);
     }
   };
 
-
-
+  // Function to monitor project progress
+  const startProgressMonitoring = async (projectId) => {
+    const checkProgress = async () => {
+      try {
+        const response = await fetch(`/api/projects/${projectId}/progress`);
+        if (response.ok) {
+          const progressData = await response.json();
+          setProcessingProgress(progressData);
+          
+          // If completed, redirect to project detail
+          if (progressData.status === 'completed') {
+            setTimeout(() => {
+              try {
+                navigate(`/projects/${projectId}`);
+              } catch (navError) {
+                console.error('React Router navigation failed, using fallback:', navError);
+                window.location.href = `/projects/${projectId}`;
+              }
+            }, 2000); // Wait 2 seconds to show completion
+            return;
+          }
+          
+          // If failed, stop monitoring
+          if (progressData.status === 'failed') {
+            console.log('Project processing failed');
+            return;
+          }
+          
+          // Continue monitoring
+          setTimeout(checkProgress, 2000);
+        }
+      } catch (error) {
+        console.error('Error checking progress:', error);
+        // Continue monitoring even if there's an error
+        setTimeout(checkProgress, 5000);
+      }
+    };
+    
+    // Start monitoring
+    checkProgress();
+  };
 
 
   return (
@@ -396,12 +389,12 @@ const Home = () => {
                   <div className="mt-4">
                     <div className="flex items-center justify-between text-sm text-green-700 mb-2">
                       <span>{processingProgress.message || 'Processing...'}</span>
-                      <span>{processingProgress.percentage || 0}%</span>
+                      <span>{processingProgress.progress || 0}%</span>
                     </div>
                     <div className="w-full bg-green-200 rounded-full h-2 mb-3">
                       <div
                         className="bg-green-600 h-2 rounded-full transition-all duration-500 ease-out"
-                        style={{ width: `${processingProgress.percentage || 0}%` }}
+                        style={{ width: `${processingProgress.progress || 0}%` }}
                       ></div>
                     </div>
                     <div className="grid grid-cols-6 gap-2 text-xs">
@@ -412,23 +405,50 @@ const Home = () => {
                       ].map((stage) => (
                         <div key={stage.step} className="text-center">
                           <div className={`w-4 h-4 rounded-full mx-auto mb-1 ${
-                            processingProgress.step >= stage.step ? 'bg-green-600' : 'bg-green-200'
+                            (processingProgress.step || 0) >= stage.step ? 'bg-green-600' : 'bg-green-200'
                           }`}></div>
-                          <span className={processingProgress.step >= stage.step ? 'font-medium text-green-700' : 'text-green-500'}>
+                          <span className={(processingProgress.step || 0) >= stage.step ? 'font-medium text-green-700' : 'text-green-500'}>
                             {stage.label}
                           </span>
                         </div>
                       ))}
                     </div>
                     {/* Progress Percentage Display */}
-                    {processingProgress.percentage !== undefined && (
+                    {processingProgress.progress !== undefined && (
                       <div className="mt-3 text-center">
                         <div className="text-lg font-bold text-green-600 mb-1">
-                          {processingProgress.percentage}%
+                          {processingProgress.progress}%
                         </div>
                         <div className="text-xs text-green-600">
                           <strong>Processing Progress</strong>
                         </div>
+                      </div>
+                    )}
+                    
+                    {/* Repository Metrics */}
+                    {processingProgress.repoMetrics && (
+                      <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                        <div className="grid grid-cols-3 gap-4 text-xs">
+                          <div className="text-center">
+                            <div className="text-lg font-semibold text-blue-600">{processingProgress.repoMetrics.totalFiles}</div>
+                            <div className="text-blue-700">Files</div>
+                          </div>
+                          <div className="text-center">
+                            <div className="text-lg font-semibold text-blue-600">{processingProgress.repoMetrics.totalDirectories}</div>
+                            <div className="text-blue-700">Directories</div>
+                          </div>
+                          <div className="text-center">
+                            <div className="text-lg font-semibold text-blue-600">
+                              {processingProgress.repoMetrics.totalSize ? `${Math.round(processingProgress.repoMetrics.totalSize / (1024 * 1024))}MB` : 'N/A'}
+                            </div>
+                            <div className="text-blue-700">Size</div>
+                          </div>
+                        </div>
+                        {processingProgress.repoMetrics.languages && processingProgress.repoMetrics.languages.length > 0 && (
+                          <div className="mt-2 text-xs text-blue-700">
+                            <strong>Languages detected:</strong> {processingProgress.repoMetrics.languages.join(', ')}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>

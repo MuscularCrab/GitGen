@@ -556,11 +556,43 @@ app.get('/api/projects/:projectId/progress', (req, res) => {
     return res.status(404).json({ error: 'Project not found' });
   }
   
+  let progress = 0;
+  let message = 'Initializing...';
+  let step = 1;
+  
+  if (project.status === 'completed') {
+    progress = 100;
+    message = 'Documentation generated successfully';
+    step = 6;
+  } else if (project.status === 'failed') {
+    progress = 0;
+    message = 'Documentation generation failed';
+    step = 1;
+  } else if (project.status === 'processing') {
+    // Estimate progress based on what's been done
+    if (project.documentation && project.documentation.files && project.documentation.files.length > 0) {
+      progress = 80;
+      message = 'Generating AI documentation...';
+      step = 5;
+    } else {
+      progress = 30;
+      message = 'Analyzing repository structure...';
+      step = 3;
+    }
+  }
+  
   res.json({
     projectId,
     status: project.status,
-    progress: project.status === 'completed' ? 100 : 50,
-    message: project.status === 'completed' ? 'Documentation generated successfully' : 'Processing...'
+    progress: progress,
+    message: message,
+    step: step,
+    repoMetrics: project.documentation ? {
+      totalFiles: project.documentation.files?.length || 0,
+      totalDirectories: project.documentation.summary?.totalDirectories || 0,
+      totalSize: project.documentation.summary?.totalSize || 0,
+      languages: project.documentation.summary?.languages ? Object.keys(project.documentation.summary.languages) : []
+    } : null
   });
 });
 
@@ -650,9 +682,11 @@ async function generateDocumentation(tempDir, project, mode) {
   try {
     console.log(`📚 Generating documentation for project: ${project.projectName}`);
     const documentation = {
-      summary: `Documentation for ${project.projectName}`,
+      summary: {},
       files: [],
-      readme: `# ${project.projectName}\n\nDocumentation generated successfully.`
+      structure: {},
+      readme: null,
+      generatedReadme: null
     };
 
     // Scan directory for files
@@ -673,28 +707,108 @@ async function generateDocumentation(tempDir, project, mode) {
     documentation.structure = buildFileStructure(files);
     console.log(`✅ File structure built with ${Object.keys(documentation.structure).length} root items`);
 
+    // Extract original README if it exists
+    console.log(`📖 Looking for original README...`);
+    const readmeFile = files.find(file => 
+      file.path.toLowerCase().includes('readme') && 
+      (file.path.toLowerCase().endsWith('.md') || file.path.toLowerCase().endsWith('.txt'))
+    );
+    
+    if (readmeFile) {
+      console.log(`📖 Found original README: ${readmeFile.path}`);
+      documentation.readme = {
+        path: readmeFile.path,
+        content: readmeFile.raw,
+        raw: readmeFile.raw
+      };
+    } else {
+      console.log(`📖 No README file found in repository`);
+    }
+
     // Generate AI README if available
     if (geminiAI && AI_CONFIG) {
       try {
         console.log(`🤖 Attempting AI README generation...`);
         const aiReadme = await generateAIReadme(files, project, mode);
         if (aiReadme) {
-          documentation.readme = aiReadme;
+          documentation.generatedReadme = {
+            raw: aiReadme,
+            markdown: aiReadme
+          };
           console.log(`✅ AI README generated successfully (${aiReadme.length} characters)`);
         } else {
           console.log(`⚠️  AI README generation returned null`);
         }
       } catch (aiError) {
         console.warn('AI README generation failed, using template:', aiError.message);
+        // Fallback to a basic template
+        documentation.generatedReadme = {
+          raw: `# ${project.projectName}\n\nThis is a generated README for ${project.projectName}.\n\n## Description\n\nThis project was analyzed from the repository: ${project.repoUrl}\n\n## Files\n\nThis project contains ${files.length} files.\n\n## Getting Started\n\nClone the repository and explore the codebase.`,
+          markdown: `# ${project.projectName}\n\nThis is a generated README for ${project.projectName}.\n\n## Description\n\nThis project was analyzed from the repository: ${project.repoUrl}\n\n## Files\n\nThis project contains ${files.length} files.\n\n## Getting Started\n\nClone the repository and explore the codebase.`
+        };
       }
+    } else {
+      // Create a basic template if AI is not available
+      documentation.generatedReadme = {
+        raw: `# ${project.projectName}\n\nThis is a generated README for ${project.projectName}.\n\n## Description\n\nThis project was analyzed from the repository: ${project.repoUrl}\n\n## Files\n\nThis project contains ${files.length} files.\n\n## Getting Started\n\nClone the repository and explore the codebase.`,
+        markdown: `# ${project.projectName}\n\nThis is a generated README for ${project.projectName}.\n\n## Description\n\nThis project was analyzed from the repository: ${project.repoUrl}\n\n## Files\n\nThis project contains ${files.length} files.\n\n## Getting Started\n\nClone the repository and explore the codebase.`
+      };
     }
 
+    // Generate summary statistics
+    const languages = {};
+    const fileTypes = {};
+    let totalSize = 0;
+    
+    files.forEach(file => {
+      // Count languages
+      if (file.language) {
+        languages[file.language] = (languages[file.language] || 0) + 1;
+      }
+      
+      // Count file types
+      const ext = path.extname(file.path).toLowerCase();
+      if (ext) {
+        fileTypes[ext] = (fileTypes[ext] || 0) + 1;
+      }
+      
+      // Sum sizes
+      totalSize += file.size || 0;
+    });
+
+    documentation.summary = {
+      totalFiles: files.length,
+      totalDirectories: countDirectories(documentation.structure),
+      totalSize: totalSize,
+      languages: languages,
+      fileTypes: fileTypes,
+      hasReadme: !!documentation.readme
+    };
+
     console.log(`📚 Documentation generation complete. Final file count: ${documentation.files.length}`);
+    console.log(`📊 Summary: ${documentation.summary.totalFiles} files, ${documentation.summary.totalDirectories} directories, ${Object.keys(languages).length} languages`);
     return documentation;
   } catch (error) {
     console.error('❌ Error generating documentation:', error);
     throw error;
   }
+}
+
+// Helper function to count directories in structure
+function countDirectories(structure) {
+  let count = 0;
+  function countDirs(obj) {
+    Object.values(obj).forEach(item => {
+      if (item.type === 'directory') {
+        count++;
+        if (item.children) {
+          countDirs(item.children);
+        }
+      }
+    });
+  }
+  countDirs(structure);
+  return count;
 }
 
 // Scan directory for files
@@ -712,7 +826,7 @@ async function scanDirectory(dirPath, basePath = '') {
       
       if (entry.isDirectory()) {
         // Skip common directories that don't need documentation
-        if (['.git', 'node_modules', 'dist', 'build', '.next'].includes(entry.name)) {
+        if (['.git', 'node_modules', 'dist', 'build', '.next', '.vscode', '.idea', 'coverage'].includes(entry.name)) {
           console.log(`⏭️  Skipping directory: ${entry.name}`);
           continue;
         }
@@ -880,9 +994,13 @@ function extractTokens(content) {
 function buildFileStructure(files) {
   const structure = {};
   
-  files.forEach(file => {
+  console.log(`🏗️  Building file structure from ${files.length} files...`);
+  
+  files.forEach((file, index) => {
     const pathParts = file.path.split('/');
     let currentLevel = structure;
+    
+    console.log(`📁 Processing file ${index + 1}: ${file.path} (${pathParts.length} path parts)`);
     
     // Navigate through the path parts
     for (let i = 0; i < pathParts.length; i++) {
@@ -900,9 +1018,18 @@ function buildFileStructure(files) {
           classes: file.classes || [],
           raw: file.raw
         };
+        console.log(`📄 Added file: ${part} to level ${i}`);
       } else {
         // This is a directory
         if (!currentLevel[part]) {
+          currentLevel[part] = {
+            type: 'directory',
+            children: {}
+          };
+          console.log(`📂 Created directory: ${part} at level ${i}`);
+        } else if (currentLevel[part].type !== 'directory') {
+          // If there's a file with the same name, convert it to a directory
+          console.log(`🔄 Converting file ${part} to directory at level ${i}`);
           currentLevel[part] = {
             type: 'directory',
             children: {}
@@ -912,6 +1039,9 @@ function buildFileStructure(files) {
       }
     }
   });
+  
+  console.log(`✅ File structure built. Root items: ${Object.keys(structure).length}`);
+  console.log(`📊 Structure preview:`, Object.keys(structure).slice(0, 5));
   
   return structure;
 }
