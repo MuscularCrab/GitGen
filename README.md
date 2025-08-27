@@ -13,6 +13,31 @@ A modern, feature-rich alternative to gitdocify.com that automatically generates
 - **README Integration**: Automatically processes and displays README files
 - **Export & Share**: Download and share documentation with your team
 
+## 🐳 Quick Start with Docker
+
+**Fastest way to get GitGen running:**
+
+```bash
+# Clone the repository
+git clone <your-repo-url>
+cd gitgen
+
+# Build and run with Docker (recommended)
+sudo docker build -f Dockerfile.working -t gitgen .
+sudo docker run -p 3030:3030 --name gitgen-container gitgen
+
+# Open your browser
+# Web Interface: http://localhost:3030
+# Health Check: http://localhost:3030/api/health
+```
+
+**Alternative: Use Docker Compose**
+```bash
+sudo docker-compose up -d
+```
+
+See the [Deployment section](#-deployment) for detailed Docker instructions and troubleshooting.
+
 ## 🏗️ Architecture
 
 - **Backend**: Node.js with Express.js
@@ -109,13 +134,13 @@ Access the debug page at `/debug` to test API connections and backend functional
 - [ ] **Custom Templates**: Allow users to create custom README templates
 
 ### 🔧 **Medium Priority**
-- [ ] **Plugin System**: Extensible architecture for custom analyzers
-- [ ] **API Rate Limiting**: Implement proper rate limiting for external services
-- [ ] **Webhook Support**: GitHub/GitLab webhooks for automatic updates
-- [ ] **User Authentication**: User accounts and project management
-- [ ] **Team Collaboration**: Shared projects and team permissions
-- [ ] **Export Formats**: Support for PDF, Word, and other document formats
-- [ ] **Internationalization**: Multi-language support for the UI
+- [x] **Plugin System**: Extensible architecture for custom analyzers
+- [x] **API Rate Limiting**: Implement proper rate limiting for external services
+- [x] **Webhook Support**: GitHub/GitLab webhooks for automatic updates
+- [x] **User Authentication**: User accounts and project management
+- [x] **Team Collaboration**: Shared projects and team permissions
+- [x] **Export Formats**: Support for PDF, Word, and other document formats
+- [x] **Internationalization**: Multi-language support for the UI
 
 ### 📊 **Enhancement Features**
 - [ ] **Analytics Dashboard**: Project usage statistics and insights
