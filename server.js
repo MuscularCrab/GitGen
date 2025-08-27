@@ -73,6 +73,382 @@ const upload = multer({ dest: 'uploads/' });
 // Add full-text search functionality
 const searchIndex = new Map(); // projectId -> { files: [], content: Map }
 
+// Rate limiting configuration
+const rateLimit = require('express-rate-limit');
+
+// Create rate limiters for different endpoints
+const createRateLimiter = (windowMs, max, message) => {
+  return rateLimit({
+    windowMs: windowMs,
+    max: max,
+    message: { error: message },
+    standardHeaders: true,
+    legacyHeaders: false,
+    handler: (req, res) => {
+      res.status(429).json({
+        error: message,
+        retryAfter: Math.ceil(windowMs / 1000),
+        timestamp: Date.now()
+      });
+    }
+  });
+};
+
+// Apply rate limiting to different endpoints
+const generalLimiter = createRateLimiter(
+  15 * 60 * 1000, // 15 minutes
+  100, // 100 requests per 15 minutes
+  'Too many requests, please try again later.'
+);
+
+const projectCreationLimiter = createRateLimiter(
+  60 * 60 * 1000, // 1 hour
+  10, // 10 project creations per hour
+  'Too many project creations, please try again later.'
+);
+
+const searchLimiter = createRateLimiter(
+  5 * 60 * 1000, // 5 minutes
+  50, // 50 searches per 5 minutes
+  'Too many search requests, please try again later.'
+);
+
+const batchLimiter = createRateLimiter(
+  60 * 60 * 1000, // 1 hour
+  3, // 3 batch operations per hour
+  'Too many batch operations, please try again later.'
+);
+
+// Apply rate limiting to endpoints
+app.use('/api/projects', generalLimiter);
+app.use('/api/projects', projectCreationLimiter);
+app.use('/api/search', searchLimiter);
+app.use('/api/projects/batch', batchLimiter);
+
+// Enhanced search functionality
+function buildSearchIndex(projectId, documentation) {
+  if (!documentation || !documentation.files) return;
+  
+  const index = {
+    files: [],
+    content: new Map(),
+    metadata: {
+      projectName: '',
+      repoUrl: '',
+      totalFiles: 0,
+      languages: [],
+      lastIndexed: Date.now()
+    }
+  };
+  
+  try {
+    // Get project metadata
+    const project = projects.get(projectId);
+    if (project) {
+      index.metadata.projectName = project.projectName;
+      index.metadata.repoUrl = project.repoUrl;
+    }
+    
+    // Index files with enhanced content analysis
+    documentation.files.forEach(file => {
+      if (file.raw && typeof file.raw === 'string') {
+        const fileIndex = {
+          path: file.path,
+          language: file.language,
+          size: file.size,
+          functions: file.functions || [],
+          classes: file.classes || [],
+          tokens: file.tokens || [],
+          content: file.raw.toLowerCase(),
+          lastModified: Date.now()
+        };
+        
+        index.files.push(fileIndex);
+        
+        // Create content index for full-text search
+        const words = file.raw.toLowerCase()
+          .replace(/[^\w\s]/g, ' ')
+          .split(/\s+/)
+          .filter(word => word.length > 2);
+        
+        const wordFrequency = new Map();
+        words.forEach(word => {
+          wordFrequency.set(word, (wordFrequency.get(word) || 0) + 1);
+        });
+        
+        index.content.set(file.path, wordFrequency);
+      }
+    });
+    
+    index.metadata.totalFiles = index.files.length;
+    index.metadata.languages = [...new Set(index.files.map(f => f.language).filter(Boolean))];
+    
+    searchIndex.set(projectId, index);
+    console.log(`🔍 Search index built for project ${projectId}: ${index.files.length} files indexed`);
+    
+  } catch (error) {
+    console.error(`Error building search index for project ${projectId}:`, error);
+  }
+}
+
+// Enhanced search endpoint with relevance scoring
+app.get('/api/search', async (req, res) => {
+  try {
+    const { q: query, projectId, language, fileType, limit = 50 } = req.query;
+    
+    if (!query || query.trim().length < 2) {
+      return res.status(400).json({ error: 'Search query must be at least 2 characters long' });
+    }
+    
+    const searchQuery = query.trim().toLowerCase();
+    const results = [];
+    
+    // Search across all projects or specific project
+    const projectsToSearch = projectId ? [projectId] : Array.from(searchIndex.keys());
+    
+    for (const pid of projectsToSearch) {
+      const index = searchIndex.get(pid);
+      if (!index) continue;
+      
+      const project = projects.get(pid);
+      if (!project) continue;
+      
+      for (const file of index.files) {
+        // Apply filters
+        if (language && file.language !== language) continue;
+        if (fileType && !file.path.endsWith(fileType)) continue;
+        
+        let score = 0;
+        const matches = [];
+        
+        // Path matching (highest priority)
+        if (file.path.toLowerCase().includes(searchQuery)) {
+          score += 100;
+          matches.push({ type: 'path', context: file.path });
+        }
+        
+        // Function/class name matching
+        const functionMatches = file.functions.filter(f => 
+          f.toLowerCase().includes(searchQuery)
+        );
+        if (functionMatches.length > 0) {
+          score += 50 * functionMatches.length;
+          matches.push({ type: 'function', context: functionMatches.join(', ') });
+        }
+        
+        const classMatches = file.classes.filter(c => 
+          c.toLowerCase().includes(searchQuery)
+        );
+        if (classMatches.length > 0) {
+          score += 50 * classMatches.length;
+          matches.push({ type: 'class', context: classMatches.join(', ') });
+        }
+        
+        // Content matching with relevance scoring
+        const contentIndex = index.content.get(file.path);
+        if (contentIndex) {
+          const queryWords = searchQuery.split(/\s+/);
+          let contentScore = 0;
+          
+          queryWords.forEach(word => {
+            const frequency = contentIndex.get(word) || 0;
+            contentScore += frequency * 10;
+          });
+          
+          score += contentScore;
+          if (contentScore > 0) {
+            matches.push({ type: 'content', context: 'Content matches found' });
+          }
+        }
+        
+        // Language bonus
+        if (file.language === 'javascript' || file.language === 'typescript') {
+          score += 5;
+        }
+        
+        if (score > 0) {
+          results.push({
+            projectId: pid,
+            projectName: project.projectName,
+            repoUrl: project.repoUrl,
+            file: {
+              path: file.path,
+              language: file.language,
+              size: file.size,
+              functions: file.functions,
+              classes: file.classes
+            },
+            score: score,
+            matches: matches
+          });
+        }
+      }
+    }
+    
+    // Sort by relevance score and limit results
+    results.sort((a, b) => b.score - a.score);
+    const limitedResults = results.slice(0, parseInt(limit));
+    
+    // Add search metadata
+    const searchStats = {
+      totalResults: results.length,
+      returnedResults: limitedResults.length,
+      query: searchQuery,
+      filters: {
+        projectId: projectId || 'all',
+        language: language || 'all',
+        fileType: fileType || 'all'
+      },
+      executionTime: Date.now()
+    };
+    
+    res.json({
+      results: limitedResults,
+      stats: searchStats
+    });
+    
+  } catch (error) {
+    console.error('Error performing search:', error);
+    res.status(500).json({ error: 'Search failed' });
+  }
+});
+
+// Get search suggestions for autocomplete
+app.get('/api/search/suggestions', async (req, res) => {
+  try {
+    const { q: query, limit = 10 } = req.query;
+    
+    if (!query || query.trim().length < 1) {
+      return res.json({ suggestions: [] });
+    }
+    
+    const searchQuery = query.trim().toLowerCase();
+    const suggestions = new Set();
+    
+    // Collect suggestions from all indexed projects
+    for (const [projectId, index] of searchIndex.entries()) {
+      // Function and class names
+      index.files.forEach(file => {
+        file.functions.forEach(func => {
+          if (func.toLowerCase().includes(searchQuery)) {
+            suggestions.add(func);
+          }
+        });
+        
+        file.classes.forEach(cls => {
+          if (cls.toLowerCase().includes(searchQuery)) {
+            suggestions.add(cls);
+          }
+        });
+      });
+      
+      // File paths
+      index.files.forEach(file => {
+        const pathParts = file.path.split('/');
+        pathParts.forEach(part => {
+          if (part.toLowerCase().includes(searchQuery) && part.length > 2) {
+            suggestions.add(part);
+          }
+        });
+      });
+    }
+    
+    const limitedSuggestions = Array.from(suggestions)
+      .sort((a, b) => a.toLowerCase().indexOf(searchQuery) - b.toLowerCase().indexOf(searchQuery))
+      .slice(0, parseInt(limit));
+    
+    res.json({
+      query: query.trim(),
+      suggestions: limitedSuggestions,
+      timestamp: Date.now()
+    });
+    
+  } catch (error) {
+    console.error('Error getting search suggestions:', error);
+    res.status(500).json({ error: 'Failed to get suggestions' });
+  }
+});
+
+// Performance optimization: Caching system for large repositories
+const repositoryCache = new Map();
+const CACHE_TTL = 1000 * 60 * 60; // 1 hour cache TTL
+const MAX_CACHE_SIZE = 100; // Maximum number of cached repositories
+
+// Cache management functions
+function getCachedRepository(repoUrl) {
+  const cached = repositoryCache.get(repoUrl);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    console.log(`📦 Cache hit for repository: ${repoUrl}`);
+    return cached.data;
+  }
+  console.log(`📦 Cache miss for repository: ${repoUrl}`);
+  return null;
+}
+
+function setCachedRepository(repoUrl, data) {
+  // Implement LRU eviction if cache is full
+  if (repositoryCache.size >= MAX_CACHE_SIZE) {
+    const oldestKey = repositoryCache.keys().next().value;
+    repositoryCache.delete(oldestKey);
+    console.log(`🗑️  Evicted oldest cache entry: ${oldestKey}`);
+  }
+  
+  repositoryCache.set(repoUrl, {
+    data: data,
+    timestamp: Date.now()
+  });
+  console.log(`💾 Cached repository data: ${repoUrl}`);
+}
+
+function clearExpiredCache() {
+  const now = Date.now();
+  let clearedCount = 0;
+  
+  for (const [key, value] of repositoryCache.entries()) {
+    if (now - value.timestamp > CACHE_TTL) {
+      repositoryCache.delete(key);
+      clearedCount++;
+    }
+  }
+  
+  if (clearedCount > 0) {
+    console.log(`🧹 Cleared ${clearedCount} expired cache entries`);
+  }
+}
+
+// Clear expired cache every 30 minutes
+setInterval(clearExpiredCache, 1000 * 60 * 30);
+
+// Batch processing and queue system
+const processingQueue = [];
+const activeProcesses = new Set();
+const MAX_CONCURRENT_PROCESSES = 3; // Maximum number of repositories processing simultaneously
+
+// Queue management functions
+function addToQueue(projectId, repoUrl, mode) {
+  processingQueue.push({ projectId, repoUrl, mode, addedAt: Date.now() });
+  console.log(`📋 Added project ${projectId} to processing queue. Queue length: ${processingQueue.length}`);
+  processNextInQueue();
+}
+
+function processNextInQueue() {
+  if (processingQueue.length === 0 || activeProcesses.size >= MAX_CONCURRENT_PROCESSES) {
+    return;
+  }
+  
+  const nextProject = processingQueue.shift();
+  console.log(`🚀 Starting batch processing for project ${nextProject.projectId}. Active processes: ${activeProcesses.size}`);
+  
+  activeProcesses.add(nextProject.projectId);
+  
+  processRepository(nextProject.projectId, nextProject.repoUrl, nextProject.mode)
+    .finally(() => {
+      activeProcesses.delete(nextProject.projectId);
+      console.log(`✅ Completed batch processing for project ${nextProject.projectId}. Active processes: ${activeProcesses.size}`);
+      processNextInQueue(); // Process next item in queue
+    });
+}
+
 // Build search index for a project
 function buildSearchIndex(projectId, documentation) {
   if (!documentation || !documentation.files) return;
@@ -322,93 +698,6 @@ app.get('/api/readme-modes', (req, res) => {
   });
 });
 
-// Search endpoint
-app.get('/api/search', (req, res) => {
-  try {
-    const { q: query, status, language, fileType, minSize, maxSize, limit = 50 } = req.query;
-    if (!query || query.trim().length === 0) {
-      return res.status(400).json({ error: 'Search query is required' });
-    }
-    
-    const filters = {
-      status: status || null,
-      language: language || null,
-      fileType: fileType || null,
-      minSize: minSize ? parseInt(minSize) : null,
-      maxSize: maxSize ? parseInt(maxSize) : null
-    };
-    
-    const results = searchProjects(query.trim(), filters);
-    
-    // Apply limit
-    const limitedResults = results.slice(0, parseInt(limit));
-    
-    res.json({
-      query: query.trim(),
-      filters,
-      totalResults: results.length,
-      results: limitedResults,
-      timestamp: Date.now()
-    });
-    
-  } catch (error) {
-    console.error('Error in search:', error);
-    res.status(500).json({ error: 'Search failed' });
-  }
-});
-
-// Search suggestions endpoint
-app.get('/api/search/suggestions', (req, res) => {
-  try {
-    const { q: query, limit = 10 } = req.query;
-    
-    if (!query || query.trim().length < 2) {
-      return res.json({ suggestions: [] });
-    }
-    
-    const suggestions = new Set();
-    const queryLower = query.toLowerCase();
-    
-    // Get suggestions from indexed content
-    for (const [projectId, index] of searchIndex.entries()) {
-      for (const file of index.files) {
-        // Check file names
-        if (file.path.toLowerCase().includes(queryLower)) {
-          suggestions.add(file.path);
-        }
-        
-        // Check function names
-        file.functions.forEach(func => {
-          if (func.toLowerCase().includes(queryLower)) {
-            suggestions.add(func);
-          }
-        });
-        
-        // Check class names
-        file.classes.forEach(cls => {
-          if (cls.toLowerCase().includes(queryLower)) {
-            suggestions.add(cls);
-          }
-        });
-      }
-    }
-    
-    const limitedSuggestions = Array.from(suggestions)
-      .slice(0, parseInt(limit))
-      .sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
-    
-    res.json({
-      query: query.trim(),
-      suggestions: limitedSuggestions,
-      timestamp: Date.now()
-    });
-    
-  } catch (error) {
-    console.error('Error getting search suggestions:', error);
-    res.status(500).json({ error: 'Failed to get suggestions' });
-  }
-});
-
 // Create new project
 app.post('/api/projects', async (req, res) => {
   try {
@@ -485,11 +774,9 @@ app.post('/api/projects', async (req, res) => {
     console.log('Project created:', { projectId, projectName, totalProjects: projects.size });
     
     // Start processing the repository (don't await - let it run in background)
-    processRepository(projectId, repoUrl, normalizedMode).catch(error => {
-      console.error(`Background processing failed for project ${projectId}:`, error);
-    });
+    addToQueue(projectId, repoUrl, normalizedMode);
 
-    res.json({ projectId, status: 'processing', mode: normalizedMode, message: 'Project created successfully' });
+    res.json({ projectId, status: 'queued', mode: normalizedMode, message: 'Project added to processing queue' });
   } catch (error) {
     console.error('Error creating project:', error);
     res.status(500).json({ error: 'Failed to create project' });
@@ -613,6 +900,269 @@ app.get('/api/projects/:projectId/readme', (req, res) => {
   res.send(project.documentation.readme || `# ${project.projectName}\n\nNo README available.`);
 });
 
+// Export project documentation in various formats
+app.get('/api/projects/:projectId/export', async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const { format = 'markdown' } = req.query;
+    
+    const project = projects.get(projectId);
+    if (!project) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+    
+    if (project.status !== 'completed' || !project.documentation) {
+      return res.status(400).json({ error: 'Project documentation not ready yet' });
+    }
+    
+    const documentation = project.documentation;
+    let content, filename, contentType;
+    
+    switch (format.toLowerCase()) {
+      case 'markdown':
+        content = documentation.generatedReadme?.raw || documentation.readme?.content || `# ${project.projectName}\n\nNo README available.`;
+        filename = `${project.projectName}-README.md`;
+        contentType = 'text/markdown';
+        break;
+        
+      case 'html':
+        // Convert markdown to HTML
+        const marked = require('marked');
+        content = marked.parse(documentation.generatedReadme?.raw || documentation.readme?.content || `# ${project.projectName}\n\nNo README available.`);
+        filename = `${project.projectName}-README.html`;
+        contentType = 'text/html';
+        break;
+        
+      case 'json':
+        content = JSON.stringify({
+          projectName: project.projectName,
+          repoUrl: project.repoUrl,
+          status: project.status,
+          createdAt: project.createdAt,
+          completedAt: project.completedAt,
+          documentation: {
+            summary: documentation.summary,
+            files: documentation.files.map(f => ({
+              path: f.path,
+              language: f.language,
+              size: f.size,
+              functions: f.functions,
+              classes: f.classes
+            })),
+            structure: documentation.structure,
+            readme: documentation.readme,
+            generatedReadme: documentation.generatedReadme
+          }
+        }, null, 2);
+        filename = `${project.projectName}-documentation.json`;
+        contentType = 'application/json';
+        break;
+        
+      case 'txt':
+        // Convert markdown to plain text
+        content = (documentation.generatedReadme?.raw || documentation.readme?.content || `# ${project.projectName}\n\nNo README available.`)
+          .replace(/#{1,6}\s+/g, '') // Remove headers
+          .replace(/\*\*(.*?)\*\*/g, '$1') // Remove bold
+          .replace(/\*(.*?)\*/g, '$1') // Remove italic
+          .replace(/`(.*?)`/g, '$1') // Remove code
+          .replace(/\[(.*?)\]\(.*?\)/g, '$1'); // Remove links
+        filename = `${project.projectName}-README.txt`;
+        contentType = 'text/plain';
+        break;
+        
+      default:
+        return res.status(400).json({ 
+          error: 'Unsupported format. Supported formats: markdown, html, json, txt' 
+        });
+    }
+    
+    // Set headers for file download
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Length', Buffer.byteLength(content, 'utf8'));
+    
+    res.send(content);
+    
+  } catch (error) {
+    console.error('Error exporting project:', error);
+    res.status(500).json({ error: 'Export failed' });
+  }
+});
+
+// Get available export formats
+app.get('/api/projects/:projectId/export/formats', (req, res) => {
+  const { projectId } = req.params;
+  const project = projects.get(projectId);
+  
+  if (!project) {
+    return res.status(404).json({ error: 'Project not found' });
+  }
+  
+  const formats = [
+    {
+      id: 'markdown',
+      name: 'Markdown (.md)',
+      description: 'Standard markdown format',
+      extension: '.md',
+      mimeType: 'text/markdown'
+    },
+    {
+      id: 'html',
+      name: 'HTML (.html)',
+      description: 'Web-ready HTML format',
+      extension: '.html',
+      mimeType: 'text/html'
+    },
+    {
+      id: 'json',
+      name: 'JSON (.json)',
+      description: 'Structured data format',
+      extension: '.json',
+      mimeType: 'application/json'
+    },
+    {
+      id: 'txt',
+      name: 'Plain Text (.txt)',
+      description: 'Simple text format',
+      extension: '.txt',
+      mimeType: 'text/plain'
+    }
+  ];
+  
+  res.json({
+    projectId,
+    projectName: project.projectName,
+    availableFormats: formats,
+    recommendedFormat: 'markdown'
+  });
+});
+
+// Webhook support for GitHub and GitLab
+app.post('/api/webhooks/github', async (req, res) => {
+  try {
+    const event = req.headers['x-github-event'];
+    const delivery = req.headers['x-github-delivery'];
+    const signature = req.headers['x-hub-signature-256'];
+    
+    console.log(`📡 GitHub webhook received: ${event} (${delivery})`);
+    
+    // Verify webhook signature if secret is configured
+    if (process.env.GITHUB_WEBHOOK_SECRET) {
+      const crypto = require('crypto');
+      const expectedSignature = 'sha256=' + crypto
+        .createHmac('sha256', process.env.GITHUB_WEBHOOK_SECRET)
+        .update(JSON.stringify(req.body))
+        .digest('hex');
+      
+      if (signature !== expectedSignature) {
+        console.warn('⚠️  GitHub webhook signature verification failed');
+        return res.status(401).json({ error: 'Invalid signature' });
+      }
+    }
+    
+    if (event === 'push') {
+      const { repository, ref } = req.body;
+      const repoUrl = repository.clone_url;
+      
+      console.log(`🔄 Repository updated: ${repoUrl} (${ref})`);
+      
+      // Find existing project for this repository
+      const existingProject = Array.from(projects.values()).find(p => p.repoUrl === repoUrl);
+      
+      if (existingProject) {
+        console.log(`🔄 Updating existing project: ${existingProject.id}`);
+        
+        // Mark project for regeneration
+        existingProject.status = 'queued';
+        existingProject.lastUpdate = new Date().toISOString();
+        existingProject.webhookTriggered = true;
+        
+        // Add to processing queue
+        addToQueue(existingProject.id, repoUrl, existingProject.mode || 'v2');
+        
+        console.log(`✅ Project ${existingProject.id} queued for regeneration`);
+      } else {
+        console.log(`ℹ️  No existing project found for repository: ${repoUrl}`);
+      }
+    }
+    
+    res.json({ status: 'webhook processed' });
+    
+  } catch (error) {
+    console.error('Error processing GitHub webhook:', error);
+    res.status(500).json({ error: 'Webhook processing failed' });
+  }
+});
+
+app.post('/api/webhooks/gitlab', async (req, res) => {
+  try {
+    const event = req.headers['x-gitlab-event'];
+    const token = req.headers['x-gitlab-token'];
+    
+    console.log(`📡 GitLab webhook received: ${event}`);
+    
+    // Verify webhook token if configured
+    if (process.env.GITLAB_WEBHOOK_TOKEN && token !== process.env.GITLAB_WEBHOOK_TOKEN) {
+      console.warn('⚠️  GitLab webhook token verification failed');
+      return res.status(401).json({ error: 'Invalid token' });
+    }
+    
+    if (event === 'Push Hook') {
+      const { project, ref } = req.body;
+      const repoUrl = project.git_http_url;
+      
+      console.log(`🔄 GitLab repository updated: ${repoUrl} (${ref})`);
+      
+      // Find existing project for this repository
+      const existingProject = Array.from(projects.values()).find(p => p.repoUrl === repoUrl);
+      
+      if (existingProject) {
+        console.log(`🔄 Updating existing GitLab project: ${existingProject.id}`);
+        
+        // Mark project for regeneration
+        existingProject.status = 'queued';
+        existingProject.lastUpdate = new Date().toISOString();
+        existingProject.webhookTriggered = true;
+        
+        // Add to processing queue
+        addToQueue(existingProject.id, repoUrl, existingProject.mode || 'v2');
+        
+        console.log(`✅ GitLab project ${existingProject.id} queued for regeneration`);
+      } else {
+        console.log(`ℹ️  No existing project found for GitLab repository: ${repoUrl}`);
+      }
+    }
+    
+    res.json({ status: 'webhook processed' });
+    
+  } catch (error) {
+    console.error('Error processing GitLab webhook:', error);
+    res.status(500).json({ error: 'Webhook processing failed' });
+  }
+});
+
+// Webhook configuration endpoint
+app.get('/api/webhooks/config', (req, res) => {
+  const config = {
+    github: {
+      url: `${req.protocol}://${req.get('host')}/api/webhooks/github`,
+      events: ['push', 'pull_request'],
+      secret: process.env.GITHUB_WEBHOOK_SECRET ? 'configured' : 'not configured'
+    },
+    gitlab: {
+      url: `${req.protocol}://${req.get('host')}/api/webhooks/gitlab`,
+      events: ['Push Hook', 'Merge Request Hook'],
+      token: process.env.GITLAB_WEBHOOK_TOKEN ? 'configured' : 'not configured'
+    },
+    instructions: {
+      github: 'Add the webhook URL to your GitHub repository settings with push events enabled',
+      gitlab: 'Add the webhook URL to your GitLab project settings with push events enabled'
+    }
+  };
+  
+  res.json(config);
+});
+
 // Process repository and generate documentation
 async function processRepository(projectId, repoUrl, mode = 'v2') {
   const project = projects.get(projectId);
@@ -624,6 +1174,25 @@ async function processRepository(projectId, repoUrl, mode = 'v2') {
   console.log(`Starting to process repository: ${repoUrl} for project: ${projectId} (${mode.toUpperCase()})`);
 
   try {
+    // Check cache first for performance optimization
+    const cachedData = getCachedRepository(repoUrl);
+    if (cachedData) {
+      console.log(`📦 Using cached data for repository: ${repoUrl}`);
+      
+      // Update project with cached documentation
+      project.documentation = cachedData.documentation;
+      project.status = 'completed';
+      project.completedAt = new Date().toISOString();
+      project.cacheHit = true;
+      
+      // Build search index
+      buildSearchIndex(projectId, cachedData.documentation);
+      
+      projects.set(projectId, project);
+      console.log(`✅ Project completed from cache: ${projectId}`);
+      return;
+    }
+
     const tempDir = `temp/${projectId}`;
     console.log(`Creating temp directory: ${tempDir}`);
     
@@ -646,12 +1215,16 @@ async function processRepository(projectId, repoUrl, mode = 'v2') {
     project.documentation = documentation;
     project.status = 'completed';
     project.completedAt = new Date().toISOString();
+    project.cacheHit = false;
     
     console.log(`📊 Project ${projectId} updated with documentation:`);
     console.log(`   Documentation type: ${typeof documentation}`);
     console.log(`   Files count: ${documentation.files?.length || 0}`);
     console.log(`   Has README: ${!!documentation.readme}`);
     console.log(`   README length: ${documentation.readme?.length || 0}`);
+    
+    // Cache the results for future use
+    setCachedRepository(repoUrl, { documentation });
     
     // Build search index
     buildSearchIndex(projectId, documentation);
