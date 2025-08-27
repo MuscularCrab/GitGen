@@ -1,11 +1,8 @@
-# Use Node.js 20 Alpine as base image
+# Use Node.js 20 Alpine as base image (includes Yarn)
 FROM node:20-alpine
 
 # Install git and other essential packages
 RUN apk add --no-cache git python3 make g++
-
-# Install Yarn globally
-RUN npm install -g yarn
 
 # Configure git for anonymous access
 RUN git config --global user.name "GitGen Bot" && \
@@ -18,8 +15,6 @@ WORKDIR /app
 # Copy package files first (for better layer caching)
 COPY package*.json ./
 COPY client/package*.json ./client/
-COPY yarn.lock* ./
-COPY client/yarn.lock* ./client/
 
 # Set Yarn configuration for better performance
 RUN yarn config set network-timeout 600000 && \

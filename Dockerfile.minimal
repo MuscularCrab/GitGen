@@ -1,0 +1,35 @@
+# Use Node.js 20 Alpine as base image
+FROM node:20-alpine
+
+# Install git
+RUN apk add --no-cache git
+
+# Configure git
+RUN git config --global user.name "GitGen Bot" && \
+    git config --global user.email "bot@gitgen.com"
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+COPY client/package*.json ./client/
+
+# Install dependencies (simple approach)
+RUN npm install --production
+RUN cd client && npm install --production
+
+# Copy source code
+COPY . .
+
+# Build client
+RUN npm run build:client
+
+# Create directories
+RUN mkdir -p temp uploads
+
+# Expose port
+EXPOSE 3030
+
+# Start
+CMD ["npm", "start"]
