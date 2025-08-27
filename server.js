@@ -253,12 +253,33 @@ app.post('/api/test-project', (req, res) => {
 
 // Debug endpoint for projects information
 app.get('/api/debug/projects', (req, res) => {
+  const projectList = Array.from(projects.values());
+  
+  // Add detailed debugging info for each project
+  const debugProjects = projectList.map(project => ({
+    ...project,
+    debug: {
+      hasDocumentation: !!project.documentation,
+      documentationType: project.documentation ? typeof project.documentation : 'none',
+      filesCount: project.documentation?.files?.length || 0,
+      filesSample: project.documentation?.files?.slice(0, 3).map(f => ({
+        path: f.path,
+        language: f.language,
+        size: f.size,
+        hasFunctions: f.functions?.length > 0,
+        hasClasses: f.classes?.length > 0
+      })) || [],
+      hasReadme: !!project.documentation?.readme,
+      readmeLength: project.documentation?.readme?.length || 0
+    }
+  }));
+  
   res.json({
     totalProjects: projects.size,
     timestamp: new Date().toISOString(),
-    projects: Array.from(projects.values()),
+    projects: debugProjects,
     status: 'success',
-    message: 'Debug endpoint working'
+    message: 'Debug endpoint working with enhanced project details'
   });
 });
 
@@ -502,6 +523,25 @@ app.get('/api/projects/:projectId', (req, res) => {
     return res.status(404).json({ error: 'Project not found' });
   }
   
+  // Add debugging info to the response
+  console.log(`📊 Project details for ${projectId}:`);
+  console.log(`   Status: ${project.status}`);
+  console.log(`   Has documentation: ${!!project.documentation}`);
+  console.log(`   Documentation type: ${typeof project.documentation}`);
+  if (project.documentation) {
+    console.log(`   Files count: ${project.documentation.files?.length || 0}`);
+    console.log(`   Has README: ${!!project.documentation.readme}`);
+    console.log(`   README length: ${project.documentation.readme?.length || 0}`);
+    
+    // Log first few files
+    if (project.documentation.files && project.documentation.files.length > 0) {
+      console.log(`   Sample files:`);
+      project.documentation.files.slice(0, 3).forEach((file, index) => {
+        console.log(`     ${index + 1}. ${file.path} (${file.language}, ${file.size} bytes)`);
+      });
+    }
+  }
+  
   res.json(project);
 });
 
@@ -573,11 +613,22 @@ async function processRepository(projectId, repoUrl, mode = 'v2') {
     project.status = 'completed';
     project.completedAt = new Date().toISOString();
     
+    console.log(`📊 Project ${projectId} updated with documentation:`);
+    console.log(`   Documentation type: ${typeof documentation}`);
+    console.log(`   Files count: ${documentation.files?.length || 0}`);
+    console.log(`   Has README: ${!!documentation.readme}`);
+    console.log(`   README length: ${documentation.readme?.length || 0}`);
+    
     // Build search index
     buildSearchIndex(projectId, documentation);
     
     projects.set(projectId, project);
-    console.log(`Project completed: ${projectId}`);
+    console.log(`✅ Project completed: ${projectId}`);
+    
+    // Verify the project was stored correctly
+    const storedProject = projects.get(projectId);
+    console.log(`🔍 Verification - stored project has documentation: ${!!storedProject.documentation}`);
+    console.log(`🔍 Verification - stored project files count: ${storedProject.documentation?.files?.length || 0}`);
     
   } catch (error) {
     console.error(`Error processing repository for project ${projectId}:`, error);
@@ -595,6 +646,7 @@ async function processRepository(projectId, repoUrl, mode = 'v2') {
 // Generate documentation from repository
 async function generateDocumentation(tempDir, project, mode) {
   try {
+    console.log(`📚 Generating documentation for project: ${project.projectName}`);
     const documentation = {
       summary: `Documentation for ${project.projectName}`,
       files: [],
@@ -602,24 +654,38 @@ async function generateDocumentation(tempDir, project, mode) {
     };
 
     // Scan directory for files
+    console.log(`🔍 Starting directory scan for: ${tempDir}`);
     const files = await scanDirectory(tempDir);
+    console.log(`📁 Directory scan complete. Found ${files.length} files`);
+    
+    // Log each file found
+    files.forEach((file, index) => {
+      console.log(`📄 File ${index + 1}: ${file.path} (${file.language}, ${file.size} bytes)`);
+    });
+    
     documentation.files = files;
+    console.log(`📊 Documentation files array set with ${documentation.files.length} files`);
 
     // Generate AI README if available
     if (geminiAI && AI_CONFIG) {
       try {
+        console.log(`🤖 Attempting AI README generation...`);
         const aiReadme = await generateAIReadme(files, project, mode);
         if (aiReadme) {
           documentation.readme = aiReadme;
+          console.log(`✅ AI README generated successfully (${aiReadme.length} characters)`);
+        } else {
+          console.log(`⚠️  AI README generation returned null`);
         }
       } catch (aiError) {
         console.warn('AI README generation failed, using template:', aiError.message);
       }
     }
 
+    console.log(`📚 Documentation generation complete. Final file count: ${documentation.files.length}`);
     return documentation;
   } catch (error) {
-    console.error('Error generating documentation:', error);
+    console.error('❌ Error generating documentation:', error);
     throw error;
   }
 }
@@ -629,7 +695,9 @@ async function scanDirectory(dirPath, basePath = '') {
   const files = [];
   
   try {
+    console.log(`🔍 Scanning directory: ${dirPath} (base: ${basePath})`);
     const entries = await fs.readdir(dirPath, { withFileTypes: true });
+    console.log(`📁 Found ${entries.length} entries in ${dirPath}`);
     
     for (const entry of entries) {
       const fullPath = path.join(dirPath, entry.name);
@@ -638,20 +706,29 @@ async function scanDirectory(dirPath, basePath = '') {
       if (entry.isDirectory()) {
         // Skip common directories that don't need documentation
         if (['.git', 'node_modules', 'dist', 'build', '.next'].includes(entry.name)) {
+          console.log(`⏭️  Skipping directory: ${entry.name}`);
           continue;
         }
         
+        console.log(`📂 Processing subdirectory: ${entry.name}`);
         // Recursively scan subdirectories
         const subFiles = await scanDirectory(fullPath, relativePath);
+        console.log(`📂 Subdirectory ${entry.name} returned ${subFiles.length} files`);
         files.push(...subFiles);
       } else {
         // Analyze file
+        console.log(`📄 Processing file: ${entry.name}`);
         const fileInfo = await analyzeFile(fullPath, relativePath);
         if (fileInfo) {
+          console.log(`✅ File analyzed: ${entry.name} (${fileInfo.language}, ${fileInfo.size} bytes)`);
           files.push(fileInfo);
+        } else {
+          console.log(`❌ File skipped: ${entry.name}`);
         }
       }
     }
+    
+    console.log(`📊 Total files found in ${dirPath}: ${files.length}`);
   } catch (error) {
     console.error(`Error scanning directory ${dirPath}:`, error);
   }
@@ -662,11 +739,15 @@ async function scanDirectory(dirPath, basePath = '') {
 // Analyze individual file
 async function analyzeFile(filePath, relativePath) {
   try {
+    console.log(`🔍 Analyzing file: ${filePath}`);
     const stats = await fs.stat(filePath);
     const ext = path.extname(filePath).toLowerCase();
     
+    console.log(`📊 File stats: ${relativePath} - Size: ${stats.size} bytes, Extension: ${ext}`);
+    
     // Skip binary files and very large files
     if (stats.size > 1024 * 1024) { // 1MB limit
+      console.log(`⏭️  Skipping large file: ${relativePath} (${stats.size} bytes > 1MB)`);
       return null;
     }
     
@@ -679,28 +760,34 @@ async function analyzeFile(filePath, relativePath) {
       tokens: []
     };
     
+    console.log(`🏷️  File info created: ${relativePath} (${fileInfo.language})`);
+    
     // Read file content for analysis
     try {
       const content = await fs.readFile(filePath, 'utf8');
       fileInfo.raw = content;
+      console.log(`📖 File content read: ${relativePath} (${content.length} characters)`);
       
       // Basic analysis based on file type
       if (['.js', '.ts', '.jsx', '.tsx'].includes(ext)) {
         fileInfo.functions = extractFunctions(content);
         fileInfo.classes = extractClasses(content);
+        console.log(`🔧 Functions extracted: ${fileInfo.functions.length}, Classes: ${fileInfo.classes.length}`);
       }
       
       // Extract tokens for search
       fileInfo.tokens = extractTokens(content);
+      console.log(`🔤 Tokens extracted: ${fileInfo.tokens.length}`);
       
     } catch (readError) {
       // File might be binary or encoded, skip content analysis
-      console.warn(`Could not read file content for ${filePath}:`, readError.message);
+      console.warn(`⚠️  Could not read file content for ${filePath}:`, readError.message);
     }
     
+    console.log(`✅ File analysis complete: ${relativePath}`);
     return fileInfo;
   } catch (error) {
-    console.error(`Error analyzing file ${filePath}:`, error);
+    console.error(`❌ Error analyzing file ${filePath}:`, error);
     return null;
   }
 }
@@ -784,11 +871,16 @@ function extractTokens(content) {
 
 // Generate AI README using Gemini
 async function generateAIReadme(files, project, mode) {
+  console.log(`🤖 Starting AI README generation for project: ${project.projectName}`);
+  console.log(`📊 Mode: ${mode}, Files count: ${files.length}`);
+  
   if (!geminiAI || !AI_CONFIG) {
+    console.log(`⚠️  AI not available - geminiAI: ${!!geminiAI}, AI_CONFIG: ${!!AI_CONFIG}`);
     return null;
   }
 
   try {
+    console.log(`🤖 Using AI model: ${AI_CONFIG.model}`);
     const model = geminiAI.getGenerativeModel({ model: AI_CONFIG.model });
     
     // Prepare context for AI
@@ -796,18 +888,35 @@ async function generateAIReadme(files, project, mode) {
       `${file.path} (${file.language}) - ${file.functions.length} functions, ${file.classes.length} classes`
     ).join('\n');
     
+    console.log(`📝 File summary for AI (${fileSummary.length} characters):`);
+    console.log(fileSummary);
+    
     const prompt = mode === 'v1' 
       ? `Generate a comprehensive README.md for the project "${project.projectName}" with repository URL ${project.repoUrl}. 
          The project contains these files:\n${fileSummary}\n\nCreate a detailed README with sections for description, installation, usage, API documentation, and contributing guidelines.`
       : `Generate a beginner-friendly README.md for the project "${project.projectName}" with repository URL ${project.repoUrl}. 
          The project contains these files:\n${fileSummary}\n\nCreate a simple, clear README with basic sections for what the project does, how to install it, and how to use it.`;
     
+    console.log(`📝 AI prompt length: ${prompt.length} characters`);
+    console.log(`🤖 Sending request to Gemini AI...`);
+    
     const result = await model.generateContent(prompt);
     const response = await result.response;
-    return response.text();
+    const aiReadme = response.text();
+    
+    console.log(`✅ AI README generated successfully!`);
+    console.log(`📊 README length: ${aiReadme.length} characters`);
+    console.log(`📄 README preview: ${aiReadme.substring(0, 200)}...`);
+    
+    return aiReadme;
     
   } catch (error) {
-    console.error('AI README generation failed:', error);
+    console.error('❌ AI README generation failed:', error);
+    console.error('Error details:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name
+    });
     return null;
   }
 }
