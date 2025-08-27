@@ -18,15 +18,20 @@ COPY client/package*.json ./client/
 
 # Set npm configuration for better performance and reliability
 RUN npm config set registry https://registry.npmjs.org/ && \
-    npm config set fetch-timeout 300000 && \
-    npm config set fetch-retry-mintimeout 20000 && \
-    npm config set fetch-retry-maxtimeout 120000
+    npm config set fetch-timeout 600000 && \
+    npm config set fetch-retry-mintimeout 30000 && \
+    npm config set fetch-retry-maxtimeout 300000 && \
+    npm config set fetch-retries 5 && \
+    npm config set maxsockets 50 && \
+    npm config set progress false
 
-# Install server dependencies with npm install (will update lock file)
-RUN npm install --production --no-audit --no-fund --timeout=300000
+# Install server dependencies with better error handling
+RUN npm install --production --no-audit --no-fund --timeout=600000 --verbose || \
+    (echo "First attempt failed, retrying..." && npm install --production --no-audit --no-fund --timeout=600000)
 
-# Install client dependencies
-RUN cd client && npm install --production --no-audit --no-fund --timeout=300000
+# Install client dependencies with better error handling
+RUN cd client && npm install --production --no-audit --no-fund --timeout=600000 --verbose || \
+    (echo "First attempt failed, retrying..." && npm install --production --no-audit --no-fund --timeout=600000)
 
 # Copy source code
 COPY . .

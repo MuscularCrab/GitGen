@@ -1,0 +1,55 @@
+# Use Node.js 20 Alpine as base image
+FROM node:20-alpine
+
+# Install git and other essential packages
+RUN apk add --no-cache git python3 make g++
+
+# Install Yarn globally
+RUN npm install -g yarn
+
+# Configure git for anonymous access
+RUN git config --global user.name "GitGen Bot" && \
+    git config --global user.email "bot@gitgen.com" && \
+    git config --global init.defaultBranch main
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files first (for better layer caching)
+COPY package*.json ./
+COPY client/package*.json ./client/
+COPY yarn.lock* ./
+COPY client/yarn.lock* ./client/
+
+# Set Yarn configuration for better performance
+RUN yarn config set network-timeout 600000 && \
+    yarn config set network-concurrency 1
+
+# Install server dependencies with Yarn
+RUN yarn install --production --frozen-lockfile --network-timeout 600000
+
+# Install client dependencies with Yarn
+RUN cd client && yarn install --production --frozen-lockfile --network-timeout 600000
+
+# Copy source code
+COPY . .
+
+# Build the React application
+RUN npm run build:client
+
+# Create necessary directories
+RUN mkdir -p temp uploads
+
+# Clean up cache to reduce image size
+RUN yarn cache clean && \
+    cd client && yarn cache clean
+
+# Expose port
+EXPOSE 3030
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:3030/api/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"
+
+# Start the application
+CMD ["npm", "start"]
