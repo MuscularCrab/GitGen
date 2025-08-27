@@ -270,7 +270,9 @@ app.get('/api/debug/projects', (req, res) => {
         hasClasses: f.classes?.length > 0
       })) || [],
       hasReadme: !!project.documentation?.readme,
-      readmeLength: project.documentation?.readme?.length || 0
+      readmeLength: project.documentation?.readme?.length || 0,
+      hasStructure: !!project.documentation?.structure,
+      structureRootItems: project.documentation?.structure ? Object.keys(project.documentation.structure).length : 0
     }
   }));
   
@@ -666,6 +668,11 @@ async function generateDocumentation(tempDir, project, mode) {
     documentation.files = files;
     console.log(`📊 Documentation files array set with ${documentation.files.length} files`);
 
+    // Build hierarchical file structure for frontend
+    console.log(`🏗️  Building file structure...`);
+    documentation.structure = buildFileStructure(files);
+    console.log(`✅ File structure built with ${Object.keys(documentation.structure).length} root items`);
+
     // Generate AI README if available
     if (geminiAI && AI_CONFIG) {
       try {
@@ -867,6 +874,46 @@ function extractTokens(content) {
   }
   
   return tokens;
+}
+
+// Build hierarchical file structure from flat files array
+function buildFileStructure(files) {
+  const structure = {};
+  
+  files.forEach(file => {
+    const pathParts = file.path.split('/');
+    let currentLevel = structure;
+    
+    // Navigate through the path parts
+    for (let i = 0; i < pathParts.length; i++) {
+      const part = pathParts[i];
+      const isLastPart = i === pathParts.length - 1;
+      
+      if (isLastPart) {
+        // This is a file
+        currentLevel[part] = {
+          type: 'file',
+          path: file.path,
+          language: file.language,
+          size: file.size,
+          functions: file.functions || [],
+          classes: file.classes || [],
+          raw: file.raw
+        };
+      } else {
+        // This is a directory
+        if (!currentLevel[part]) {
+          currentLevel[part] = {
+            type: 'directory',
+            children: {}
+          };
+        }
+        currentLevel = currentLevel[part].children;
+      }
+    }
+  });
+  
+  return structure;
 }
 
 // Generate AI README using Gemini
