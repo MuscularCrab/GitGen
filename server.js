@@ -397,9 +397,13 @@ app.post('/api/projects', async (req, res) => {
       return res.status(400).json({ error: 'Repository URL and project name are required' });
     }
 
-    // Validate mode parameter
-    if (mode && !['v1', 'v2'].includes(mode)) {
-      return res.status(400).json({ error: 'Invalid mode. Use "v1" for comprehensive or "v2" for beginner-friendly.' });
+    // Validate mode parameter and normalize it
+    let normalizedMode = mode;
+    if (mode === '1') normalizedMode = 'v1';
+    if (mode === '2') normalizedMode = 'v2';
+    
+    if (normalizedMode && !['v1', 'v2'].includes(normalizedMode)) {
+      return res.status(400).json({ error: 'Invalid mode. Use "v1" (or "1") for comprehensive or "v2" (or "2") for beginner-friendly.' });
     }
 
     // Validate repository URL format
@@ -450,17 +454,19 @@ app.post('/api/projects', async (req, res) => {
       createdAt: new Date().toISOString(),
       documentation: null,
       error: null,
-      mode: mode || 'v2'
+      mode: normalizedMode || 'v2'
     };
     
     projects.set(projectId, project);
     
     console.log('Project created:', { projectId, projectName, totalProjects: projects.size });
     
-    // Start processing the repository
-    processRepository(projectId, repoUrl, mode);
+    // Start processing the repository (don't await - let it run in background)
+    processRepository(projectId, repoUrl, normalizedMode).catch(error => {
+      console.error(`Background processing failed for project ${projectId}:`, error);
+    });
 
-    res.json({ projectId, status: 'processing', mode, message: 'Project created successfully' });
+    res.json({ projectId, status: 'processing', mode: normalizedMode, message: 'Project created successfully' });
   } catch (error) {
     console.error('Error creating project:', error);
     res.status(500).json({ error: 'Failed to create project' });
@@ -549,6 +555,7 @@ async function processRepository(projectId, repoUrl, mode = 'v2') {
     
     // Create temp directory
     await fs.mkdir(tempDir, { recursive: true });
+    console.log(`Temp directory created successfully: ${tempDir}`);
 
     // Clone repository
     console.log(`Cloning repository: ${repoUrl}`);
@@ -574,6 +581,11 @@ async function processRepository(projectId, repoUrl, mode = 'v2') {
     
   } catch (error) {
     console.error(`Error processing repository for project ${projectId}:`, error);
+    console.error(`Error details:`, {
+      message: error.message,
+      stack: error.stack,
+      name: error.name
+    });
     project.status = 'failed';
     project.error = error.message;
     projects.set(projectId, project);
@@ -811,9 +823,17 @@ app.get('*', (req, res) => {
 });
 
 // Start the server
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`🚀 GitGen server running on port ${PORT}`);
   console.log(`✅ Health check: http://localhost:${PORT}/api/health`);
   console.log(`🌐 Web interface: http://localhost:${PORT}`);
   console.log(`📖 API info: http://localhost:${PORT}/api`);
+  
+  // Test file system operations
+  try {
+    await fs.mkdir('temp', { recursive: true });
+    console.log('✅ Temp directory creation test passed');
+  } catch (error) {
+    console.error('❌ Temp directory creation test failed:', error.message);
+  }
 });
