@@ -12,9 +12,8 @@ RUN git config --global user.name "GitGen Bot" && \
 # Set working directory
 WORKDIR /app
 
-# Copy package files first (for better layer caching)
-COPY package*.json ./
-COPY client/package*.json ./client/
+# Copy everything at once to avoid copy order issues
+COPY . .
 
 # Set Yarn configuration for better performance
 RUN yarn config set network-timeout 600000 && \
@@ -26,11 +25,8 @@ RUN yarn install --production --frozen-lockfile --network-timeout 600000
 # Install client dependencies with Yarn
 RUN cd client && yarn install --production --frozen-lockfile --network-timeout 600000
 
-# Copy source code
-COPY . .
-
-# Build the React application
-RUN npm run build:client
+# Build the React application using yarn
+RUN cd client && yarn build
 
 # Create necessary directories
 RUN mkdir -p temp uploads

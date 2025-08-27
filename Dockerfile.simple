@@ -1,0 +1,33 @@
+# Use Node.js 20 Alpine as base image
+FROM node:20-alpine
+
+# Install git
+RUN apk add --no-cache git
+
+# Configure git
+RUN git config --global user.name "GitGen Bot" && \
+    git config --global user.email "bot@gitgen.com"
+
+# Set working directory
+WORKDIR /app
+
+# Copy everything at once to avoid copy order issues
+COPY . .
+
+# Install server dependencies
+RUN npm install --production
+
+# Install client dependencies
+RUN cd client && npm install --production
+
+# Build the React application
+RUN cd client && npm run build
+
+# Create necessary directories
+RUN mkdir -p temp uploads
+
+# Expose port
+EXPOSE 3030
+
+# Start the application
+CMD ["npm", "start"]
