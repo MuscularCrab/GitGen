@@ -207,6 +207,7 @@ app.get('/api', (req, res) => {
       'test-git': '/api/test-git',
       'test-project': '/api/test-project',
       'debug/projects': '/api/debug/projects',
+      'readme-modes': '/api/readme-modes',
       projects: '/api/projects',
       'projects/:id': '/api/projects/:id',
       search: '/api/search',
@@ -258,6 +259,43 @@ app.get('/api/debug/projects', (req, res) => {
     projects: Array.from(projects.values()),
     status: 'success',
     message: 'Debug endpoint working'
+  });
+});
+
+// README modes endpoint
+app.get('/api/readme-modes', (req, res) => {
+  res.json({
+    modes: [
+      {
+        id: 'v1',
+        name: 'Comprehensive',
+        description: 'Detailed documentation with full API reference, architecture diagrams, and comprehensive guides',
+        features: [
+          'Full API documentation',
+          'Architecture diagrams',
+          'Detailed installation guides',
+          'Usage examples',
+          'Contributing guidelines',
+          'Performance analysis'
+        ],
+        recommendedFor: 'Enterprise projects, open source libraries, complex systems'
+      },
+      {
+        id: 'v2',
+        name: 'Beginner-Friendly',
+        description: 'Simple, clear documentation focused on getting started quickly',
+        features: [
+          'Quick start guide',
+          'Basic usage examples',
+          'Simple installation steps',
+          'Essential information only',
+          'Clear project overview'
+        ],
+        recommendedFor: 'Simple projects, demos, learning projects, quick documentation'
+      }
+    ],
+    defaultMode: 'v2',
+    timestamp: new Date().toISOString()
   });
 });
 
