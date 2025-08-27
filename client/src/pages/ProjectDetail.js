@@ -64,6 +64,24 @@ const ProjectDetail = () => {
     }
   }, [projectId, loadProject]);
 
+  // Debug logging for currentProject
+  useEffect(() => {
+    if (currentProject) {
+      console.log('ProjectDetail - currentProject updated:', {
+        id: currentProject.id,
+        status: currentProject.status,
+        hasDocumentation: !!currentProject.documentation,
+        documentationType: typeof currentProject.documentation,
+        filesCount: currentProject.documentation?.files?.length || 0,
+        hasStructure: !!currentProject.documentation?.structure,
+        structureKeys: currentProject.documentation?.structure ? Object.keys(currentProject.documentation.structure) : [],
+        hasReadme: !!currentProject.documentation?.readme,
+        hasGeneratedReadme: !!currentProject.documentation?.generatedReadme,
+        summary: currentProject.documentation?.summary
+      });
+    }
+  }, [currentProject]);
+
   // Close export dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
