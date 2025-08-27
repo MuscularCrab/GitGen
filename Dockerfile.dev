@@ -1,0 +1,37 @@
+# Development Dockerfile with hot reload
+FROM node:20-alpine
+
+# Install git and other essential packages
+RUN apk add --no-cache git python3 make g++
+
+# Configure git for anonymous access
+RUN git config --global user.name "GitGen Bot" && \
+    git config --global user.email "bot@gitgen.com" && \
+    git config --global init.defaultBranch main
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files first
+COPY package*.json ./
+COPY client/package*.json ./client/
+
+# Set npm configuration for development
+RUN npm config set registry https://registry.npmjs.org/ && \
+    npm config set fetch-timeout 300000
+
+# Install all dependencies (including dev dependencies)
+RUN npm ci --timeout=300000
+RUN cd client && npm ci --timeout=300000
+
+# Copy source code
+COPY . .
+
+# Create necessary directories
+RUN mkdir -p temp uploads
+
+# Expose port
+EXPOSE 3030
+
+# Start in development mode with nodemon
+CMD ["npm", "run", "dev"]

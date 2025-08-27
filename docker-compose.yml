@@ -2,15 +2,17 @@ version: '3.8'
 
 services:
   gitgen:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
     ports:
       - "3030:3030"
     environment:
       - NODE_ENV=production
       - PORT=3030
     volumes:
-      - gitgen-temp:/app/temp
-      - gitgen-uploads:/app/uploads
+      - ./temp:/app/temp
+      - ./uploads:/app/uploads
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "node", "-e", "require('http').get('http://localhost:3030/api/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"]
@@ -19,24 +21,20 @@ services:
       retries: 3
       start_period: 40s
 
-  # Development service (optional)
+  # Development version with hot reload
   gitgen-dev:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
     ports:
-      - "3002:3030"
+      - "3031:3030"
     environment:
       - NODE_ENV=development
       - PORT=3030
     volumes:
-      - ./src:/app/src
-      - ./client/src:/app/client/src
-      - ./server.js:/app/server.js
-      - ./package.json:/app/package.json
-      - ./client/package.json:/app/client/package.json
-    command: npm run dev
+      - .:/app
+      - /app/node_modules
+      - /app/client/node_modules
+    restart: unless-stopped
     profiles:
       - dev
-
-volumes:
-  gitgen-temp:
-  gitgen-uploads:

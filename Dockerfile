@@ -1,8 +1,8 @@
-# Use Node.js 20 Alpine as base image (includes File API and better Web API support)
+# Use Node.js 20 Alpine as base image
 FROM node:20-alpine
 
-# Install git (required for repository cloning)
-RUN apk add --no-cache git
+# Install git and other essential packages
+RUN apk add --no-cache git python3 make g++
 
 # Configure git for anonymous access
 RUN git config --global user.name "GitGen Bot" && \
@@ -12,16 +12,21 @@ RUN git config --global user.name "GitGen Bot" && \
 # Set working directory
 WORKDIR /app
 
-# Copy package files
+# Copy package files first (for better layer caching)
 COPY package*.json ./
 COPY client/package*.json ./client/
 
-# Install dependencies
-RUN npm install
-RUN cd client && npm install
+# Set npm configuration for better performance and reliability
+RUN npm config set registry https://registry.npmjs.org/ && \
+    npm config set fetch-timeout 300000 && \
+    npm config set fetch-retry-mintimeout 20000 && \
+    npm config set fetch-retry-maxtimeout 120000
 
-# Install AI dependencies for Gemini integration
-RUN npm install @google/generative-ai dotenv
+# Install server dependencies with specific timeout and retry settings
+RUN npm ci --only=production --no-audit --no-fund --prefer-offline --timeout=300000
+
+# Install client dependencies
+RUN cd client && npm ci --only=production --no-audit --no-fund --prefer-offline --timeout=300000
 
 # Copy source code
 COPY . .
@@ -31,6 +36,10 @@ RUN npm run build:client
 
 # Create necessary directories
 RUN mkdir -p temp uploads
+
+# Clean up npm cache to reduce image size
+RUN npm cache clean --force && \
+    cd client && npm cache clean --force
 
 # Expose port
 EXPOSE 3030
